@@ -1,0 +1,6 @@
+{
+  "sdkRoot" : "${SDK_PATH}/",
+  "apackRoot" : "${SDK_PATH}/platform/radio/efr32_multiphy_configurator",
+  "partOpn" : "efr32fg25b222f1920im56",
+  "boards" : "brd4002arevA07,brd4270brevA06"
+}

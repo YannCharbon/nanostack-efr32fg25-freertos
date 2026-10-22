@@ -1,0 +1,21 @@
+#CRC Codes for initially generated config files -- do not modify!
+FreeRTOSConfig.h=1552467585
+dmadrv_config.h=-7260318
+rail/profile_wisun_fan_1_0.restriction=-775004010
+rail/radio_settings.radioconf=-1863499821
+sl_board_control_config.h=-1214408852
+sl_clock_manager_oscillator_config.h=-858739370
+sl_clock_manager_tree_config.h=-1033433161
+sl_core_config.h=-1854422791
+sl_debug_swo_config.h=-178041412
+sl_device_init_dcdc_config.h=1406119698
+sl_hfxo_manager_config.h=-1473786040
+sl_iostream_eusart_vcom_config.h=-2116868435
+sl_main_start_task_config.h=-590414267
+sl_memory_manager_region_config.h=-335509190
+sl_mx25_flash_shutdown_eusart_config.h=76369063
+sl_power_manager_config.h=2095604200
+sl_rail_util_pa_config.h=1273324392
+sl_rail_util_power_manager_init_config.h=-905768668
+sl_rail_util_sfm_sequencer_config.h=-1970091199
+sl_sleeptimer_config.h=1108469985
