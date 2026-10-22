@@ -19,7 +19,6 @@
 #include "sl_iostream_handles.h"
 #include "sl_iostream_uart.h"
 #include "sl_iostream_init_eusart_instances.h"
-#include "rail.h"
 
 #include "common/hal_interrupt.h"
 #include "ns_port.h"
@@ -97,7 +96,8 @@ void ns_port_trace_write(const char *line)
 {
     char pfx[16];
     size_t l = strlen(line);
-    int p = snprintf(pfx, sizeof(pfx), "[%lu] ", (unsigned long)(RAIL_GetTime() / 1000u));
+    /* ms since boot (RTOS tick; the 32-bit µs RAIL clock wraps every 71 min) */
+    int p = snprintf(pfx, sizeof(pfx), "[%lu] ", (unsigned long)(xTaskGetTickCount() * portTICK_PERIOD_MS));
     char buf[256];
 
     /* One ring_put per line so that lines are dropped whole. */

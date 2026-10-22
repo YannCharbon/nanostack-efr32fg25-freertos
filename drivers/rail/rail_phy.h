@@ -47,7 +47,7 @@ struct rail_phy_stats {
     uint32_t tx_late_start;      /* prepare ran after the requested TX time */
     uint32_t tx_aborted_by_mac;
     uint32_t ack_tx;
-    uint32_t ack_latency_max_us; /* RX sync-word end -> Enh-ACK TX start */
+    uint32_t ack_latency_max_us; /* end of received frame -> Enh-ACK TX start */
     uint32_t prepare_lateness_max_us;
     uint32_t cal_runs;
     uint16_t channel;

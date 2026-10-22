@@ -59,9 +59,11 @@ static const char *const nwk_event_names[] = {
     "ARM_NWK_PHY_CONNECTION_DOWN",
 };
 
+/* ms since boot from the RTOS tick (1 kHz): the 32-bit µs RAIL clock wraps
+ * every 71 min, the tick count after 49 days. */
 static uint32_t now_ms(void)
 {
-    return RAIL_GetTime() / 1000u;
+    return (uint32_t)xTaskGetTickCount() * portTICK_PERIOD_MS;
 }
 
 /* Common part of wsbr_configure_ws() (orch/app_wsbrd/wsbr.c, wsrouter.c). */
@@ -80,6 +82,15 @@ static void configure_ws(void)
     ret = ws_management_fhss_broadcast_channel_function_configure(g_node.ws_if, WS_DH1CF, 0xffff,
                                                                   WS_FHSS_BC_DWELL_INTERVAL, WS_FHSS_BC_INTERVAL);
     if (ret) tr_warn("bc channel function: %d", ret);
+    if (APP_WS_CHAN_FIRST != 0 || APP_WS_CHAN_LAST != 128) {
+        uint32_t mask[8] = { 0 };
+        for (unsigned ch = APP_WS_CHAN_FIRST; ch <= APP_WS_CHAN_LAST && ch < 256; ch++) {
+            mask[ch / 32] |= 1u << (ch % 32);
+        }
+        ret = ws_management_channel_mask_set(g_node.ws_if, mask);
+        if (ret) tr_warn("ws_management_channel_mask_set: %d", ret);
+        tr_info("allowed channels %u..%u", APP_WS_CHAN_FIRST, APP_WS_CHAN_LAST);
+    }
     ret = ws_management_network_size_set(g_node.ws_if, APP_WS_SIZE);
     if (ret) tr_warn("ws_management_network_size_set: %d", ret);
     ret = ws_device_min_sens_set(g_node.ws_if, APP_DEVICE_MIN_SENS);

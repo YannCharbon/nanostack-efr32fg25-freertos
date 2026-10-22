@@ -103,11 +103,13 @@ struct rx_slot {
     int8_t rssi;
     uint8_t lqi;
     uint32_t time;         /* sync-word end, RAIL µs */
+    uint32_t end;          /* estimated end of frame (FCS end), RAIL µs */
     uint8_t buf[RX_BUF_LEN];
 };
 static struct rx_slot rx_ring[RAIL_PHY_RX_SLOTS];
 static volatile uint32_t rx_head, rx_tail;
-static uint32_t last_rx_time;
+static uint32_t last_rx_time;        /* sync-word end of the last delivered frame */
+static uint32_t last_rx_end;         /* estimated end of that frame */
 
 /* RAIL FIFOs */
 static uint8_t tx_fifo[RAIL_PHY_TX_FIFO_SIZE] __attribute__((aligned(4)));
@@ -173,7 +175,11 @@ static void start_rx(void)
         return;
     }
     if (cur_channel >= rail_ch_count) {
-        tr_err("channel %u out of radio config range (%u)", cur_channel, rail_ch_count);
+        /* The MAC brings the PHY up on channel 0xff before FHSS has picked a
+         * channel; any other out-of-range value is a configuration mismatch. */
+        if (cur_channel != 0xff) {
+            tr_err("channel %u out of radio config range (%u)", cur_channel, rail_ch_count);
+        }
         return;
     }
     if (rx_channel == cur_channel && (RAIL_GetRadioState(rh) & RAIL_RF_STATE_RX)) {
@@ -237,6 +243,7 @@ static void rx_capture_isr(void)
     slot->rssi = details.rssi;
     slot->lqi = details.lqi;
     slot->time = details.timeReceived.packetTime;
+    slot->end = slot->time + (uint32_t)(((uint64_t)(info.packetBytes + fcs_len) * 8u * 1000000u) / symbol_rate);
     __DMB();
     rx_head++;
 }
@@ -379,7 +386,7 @@ static void tx_start_rail(void)
         return;
     }
     if (tx_is_ack) {
-        uint32_t lat = tx_start_time - last_rx_time;
+        uint32_t lat = tx_start_time - last_rx_end;
         stats.ack_tx++;
         if (lat > stats.ack_latency_max_us && lat < 1000000u) {
             stats.ack_latency_max_us = lat;
@@ -477,6 +484,7 @@ static void deliver_rx(void)
 
         __DMB();
         last_rx_time = slot->time;
+        last_rx_end = slot->end;
         stats.rx_ok++;
         if (drv.phy_rx_cb) {
             drv.phy_rx_cb(slot->buf + PHR_LEN, slot->len, slot->lqi, slot->rssi, drv_id);

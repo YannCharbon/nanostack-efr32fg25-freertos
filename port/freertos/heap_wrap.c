@@ -85,6 +85,7 @@ void *__wrap_realloc(void *ptr, size_t size)
     return n;
 }
 
+#ifdef _NEWLIB_VERSION
 /* newlib's reentrant entry points, in case some libc code uses them. */
 void *__wrap__malloc_r(struct _reent *r, size_t size)
 {
@@ -109,6 +110,7 @@ void *__wrap__realloc_r(struct _reent *r, void *ptr, size_t size)
     (void)r;
     return __wrap_realloc(ptr, size);
 }
+#endif /* _NEWLIB_VERSION */
 
 void ns_port_heap_stats(struct ns_port_heap_stats *st)
 {
