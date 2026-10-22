@@ -63,6 +63,16 @@ void ns_port_random_bytes(void *buf, size_t n)
     }
 }
 
+/* MBEDTLS_ENTROPY_HARDWARE_ALT: mbedTLS registers this as a STRONG entropy
+ * source (config/mbedtls_config_target.h). */
+int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t *olen)
+{
+    (void)data;
+    ns_port_random_bytes(output, len);
+    *olen = len;
+    return 0;
+}
+
 void rand_add_seed(uint64_t seed)
 {
     (void)seed; /* TRNG: nothing to seed */

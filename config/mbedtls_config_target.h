@@ -8,8 +8,14 @@
  * (GENERICITY_PLAN.md §5.4, D13, D14):
  *  - no MBEDTLS_HAVE_TIME / _DATE: there is no RTC, time() would be 1970 and
  *    every certificate would be "not yet valid";
- *  - MBEDTLS_NO_PLATFORM_ENTROPY: the stack registers its own entropy source
- *    (rand_get_8bit(), backed by the SE TRNG on this target);
+ *  - MBEDTLS_NO_PLATFORM_ENTROPY (no /dev/urandom) + MBEDTLS_ENTROPY_HARDWARE_ALT:
+ *    the SE TRNG is registered as a STRONG entropy source through
+ *    mbedtls_hardware_poll() (port/freertos/random.c). Needed: the stack's own
+ *    source (rand_get_8bit(), tls_sec_prot_lib.c) is registered as WEAK, and
+ *    mbedtls_ctr_drbg_seed() fails ("drbg seed fail") without at least one
+ *    strong source. The emulator never hit this because its config keeps the
+ *    platform (/dev/urandom) source. Found with the host twin (tests/host_twin);
+ *    GENERICITY_PLAN.md §5.4 only listed MBEDTLS_NO_PLATFORM_ENTROPY;
  *  - 4 kB TLS records instead of 16 kB (example certificates are ~500 B DER);
  *  - no MBEDTLS_VERSION_FEATURES (no runtime feature check on target).
  */
@@ -63,10 +69,11 @@
 #define MBEDTLS_PEM_PARSE_C
 #define MBEDTLS_BASE64_C
 
-/* Random: DRBG seeded by the stack-registered entropy source only */
+/* Random: CTR_DRBG seeded from the SE TRNG (strong) + the stack source (weak) */
 #define MBEDTLS_CTR_DRBG_C
 #define MBEDTLS_ENTROPY_C
 #define MBEDTLS_NO_PLATFORM_ENTROPY
+#define MBEDTLS_ENTROPY_HARDWARE_ALT     /* mbedtls_hardware_poll() = SE TRNG */
 
 /* Diagnostics */
 #define MBEDTLS_VERSION_C
