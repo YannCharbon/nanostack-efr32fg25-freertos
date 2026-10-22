@@ -1,0 +1,21 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "fw",
+      "displayName": "EFR32FG25 firmware (BR + RN), arm-none-eabi-gcc, Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/fw",
+      "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "br",  "configurePreset": "fw", "targets": ["wisun_br"] },
+    { "name": "rn",  "configurePreset": "fw", "targets": ["wisun_rn"] },
+    { "name": "all", "configurePreset": "fw", "targets": ["wisun_br", "wisun_rn"] }
+  ]
+}
