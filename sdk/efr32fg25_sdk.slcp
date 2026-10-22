@@ -1,0 +1,59 @@
+project_name: efr32fg25_sdk
+label: "nanostack-efr32fg25-freertos SDK part"
+description: >
+  Selects only the Simplicity SDK components that the Nanostack firmware
+  needs (device/startup, clocks, FreeRTOS + heap_4, sleeptimer, power manager,
+  RAIL single-protocol + PA utility + Wi-SUN FAN 1.0 NA/1/1b radio config,
+  SE manager, VCOM iostream). No Silicon Labs Wi-SUN stack and no SDK mbedTLS:
+  the firmware brings its own Nanostack and mbedTLS v3.0.0.
+  Generated once with `tools/sdk_generate.sh`; the output in sdk/gen/ is
+  committed so a normal build needs neither Java nor slc.
+quality: experimental
+
+component:
+  - id: EFR32FG25B222F1920IM56
+  - id: brd4270b
+  - id: brd4002a
+  - id: sl_main
+  - id: clock_manager
+  - id: device_init
+  - id: board_control
+  - id: sleeptimer
+  - id: power_manager
+  - id: freertos
+  - id: freertos_heap_4
+  - id: rail_lib_singleprotocol
+  - id: rail_util_pa
+  - id: radio_config_brd_wisun_singlephy
+  - id: restrictions_profile_wisun_fan_1_0
+  - id: se_manager
+  - id: iostream_recommended_stream
+  - id: emlib_core
+
+configuration:
+  - name: SL_BOARD_ENABLE_VCOM
+    value: "1"
+  - name: SL_IOSTREAM_EUSART_VCOM_CONVERT_BY_DEFAULT_LF_TO_CRLF
+    value: "1"
+  - name: SL_IOSTREAM_EUSART_VCOM_BAUDRATE
+    value: "115200"
+  - name: SL_IOSTREAM_EUSART_VCOM_FLOW_CONTROL_TYPE
+    value: "SL_IOSTREAM_EUSART_UART_FLOW_CTRL_NONE"
+  - name: SL_MAIN_START_TASK_STACK_SIZE_BYTES
+    value: "2048"
+  # malloc() of the stack is wrapped onto pvPortMalloc (heap_4).
+  # 200 kB fits both images (RN needs ~60-90 kB peak, BR more with joins).
+  - name: configTOTAL_HEAP_SIZE
+    value: "204800"
+  - name: configMINIMAL_STACK_SIZE
+    value: "320"
+  - name: configUSE_POSIX_ERRNO
+    value: "0"
+  - name: configCHECK_FOR_STACK_OVERFLOW
+    value: "2"
+  - name: configUSE_MALLOC_FAILED_HOOK
+    value: "1"
+
+toolchain_settings:
+  - option: optimize
+    value: size
