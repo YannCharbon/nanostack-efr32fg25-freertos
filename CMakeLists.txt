@@ -113,7 +113,7 @@ function(add_wisun_image name role nslib)
     target_link_options(${name} PRIVATE
         -Wl,--wrap=malloc,--wrap=free,--wrap=calloc,--wrap=realloc
         -Wl,--wrap=_malloc_r,--wrap=_free_r,--wrap=_calloc_r,--wrap=_realloc_r
-        -Wl,--wrap=fopen,--wrap=fclose,--wrap=fread,--wrap=fwrite,--wrap=fseek,--wrap=ftell,--wrap=remove
+        -Wl,--wrap=fopen,--wrap=fclose,--wrap=fread,--wrap=fwrite,--wrap=fseek,--wrap=ftell,--wrap=remove,--wrap=rewind
         -Wl,-Map=$<TARGET_FILE_DIR:${name}>/${name}.map
         -Wl,--print-memory-usage
     )

@@ -70,3 +70,8 @@ int __wrap_remove(const char *path)
     errno = ENOSYS;
     return -1;
 }
+
+void __wrap_rewind(FILE *f)
+{
+    (void)f;
+}

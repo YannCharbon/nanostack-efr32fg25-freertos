@@ -26,6 +26,23 @@
 #define APP_WS_MODE 0x1b
 #endif
 
+/* Allowed channel range (Wi-SUN channel numbers, inclusive). Default: the
+ * whole NA/1b plan, 0..128. Asynchronous frames (PAN advertisement /
+ * configuration and their solicits) are swept over every allowed channel:
+ * with 129 channels at 50 kbit/s one sweep keeps the radio busy ~2-3 s, during
+ * which the node neither receives on its unicast channel nor sends unicast.
+ * A narrower range would shorten the sweeps, BUT: EXPERIMENTAL, NOT WORKING
+ * YET: in the host twin, with 0..15 the RN selects the BR as parent but its
+ * unicast EAPOL frames are never acknowledged (the mask only reaches the
+ * unicast schedule, "channels: BC 129 UC 16"); not investigated further.
+ * Also, FCC 15.247 requires >= 50 hopping channels in 902-928 MHz. */
+#ifndef APP_WS_CHAN_FIRST
+#define APP_WS_CHAN_FIRST 0
+#endif
+#ifndef APP_WS_CHAN_LAST
+#define APP_WS_CHAN_LAST 128
+#endif
+
 #ifndef APP_WS_SIZE
 #define APP_WS_SIZE NETWORK_SIZE_SMALL
 #endif
