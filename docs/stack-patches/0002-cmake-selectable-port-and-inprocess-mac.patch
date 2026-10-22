@@ -1,0 +1,93 @@
+--- a/CMakeLists.txt	2026-10-22 17:05:53.237731763 +0200
++++ b/CMakeLists.txt	2026-10-22 17:07:29.046249036 +0200
+@@ -18,17 +18,33 @@
+ 
+ set(NANOSTACK_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+ 
+-include(CheckIncludeFile)
+-include(CheckSymbolExists)
+-check_include_file(backtrace.h BACKTRACE_FOUND)
+-set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
+-set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+-check_symbol_exists(dladdr dlfcn.h LIBDL_FOUND)
+-unset(CMAKE_REQUIRED_LIBRARIES)
+-unset(CMAKE_REQUIRED_DEFINITIONS)
++# Porting layer (GENERICITY_PLAN.md D18). Default: the Linux port in
++# port/linux. A cross build (e.g. the EFR32 FreeRTOS firmware) sets
++# NANOSTACK_PORT to its own target, which must provide the "common/rand.h",
++# "common/hal_interrupt.h" and "common/utils.h" headers on its include path
++# and implement the porting functions. MbedTLS: if the consumer already
++# defines MbedTLS::mbedtls, MbedTLS::mbedcrypto and MbedTLS::mbedx509 (e.g.
++# INTERFACE/ALIAS targets of its own build), find_package() is skipped.
++if(NOT DEFINED NANOSTACK_PORT)
++    set(NANOSTACK_PORT "nanostack_port_linux" CACHE STRING "Target implementing the Nanostack porting API")
++endif()
++# In-process builds (MAC linked into the same image as the upper stack) must
++# link only one copy of rf_driver_storage.c (D15).
++option(NANOSTACK_RCP_INPROCESS "Drop rcp/mac/rf_driver_storage.c (use nanostack/source/mac/ copy)" OFF)
++
++if(NANOSTACK_PORT STREQUAL "nanostack_port_linux")
++    include(CheckIncludeFile)
++    include(CheckSymbolExists)
++    check_include_file(backtrace.h BACKTRACE_FOUND)
++    set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
++    set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
++    check_symbol_exists(dladdr dlfcn.h LIBDL_FOUND)
++    unset(CMAKE_REQUIRED_LIBRARIES)
++    unset(CMAKE_REQUIRED_DEFINITIONS)
+ 
+-set(THREADS_PREFER_PTHREAD_FLAG ON)
+-find_package(Threads REQUIRED)
++    set(THREADS_PREFER_PTHREAD_FLAG ON)
++    find_package(Threads REQUIRED)
++endif()
+ if(NOT TARGET MbedTLS::mbedtls)
+     find_package(MbedTLS REQUIRED)
+     mark_as_advanced(MbedTLS_DIR)
+@@ -58,8 +74,9 @@
+ target_include_directories(nanostack_eventloop PUBLIC
+     ${NANOSTACK_ROOT}/nanostack-event-loop/
+ )
+-target_link_libraries(nanostack_eventloop PUBLIC nanostack_libservice nanostack_port_linux)
++target_link_libraries(nanostack_eventloop PUBLIC nanostack_libservice ${NANOSTACK_PORT})
+ 
++if(NANOSTACK_PORT STREQUAL "nanostack_port_linux")
+ # Includes stay "common/xxx.h", as in the original tree.
+ add_library(nanostack_port_linux STATIC
+     port/linux/common/hal_interrupt.c
+@@ -82,6 +99,7 @@
+     target_compile_definitions(nanostack_port_linux PRIVATE HAVE_LIBDL)
+     target_link_libraries(nanostack_port_linux PUBLIC ${CMAKE_DL_LIBS})
+ endif()
++endif() # NANOSTACK_PORT == nanostack_port_linux
+ 
+ set(NANOSTACK_SOURCES
+     nanostack/source/6lowpan/adaptation_interface.c
+@@ -244,7 +262,7 @@
+         target_compile_definitions(${name} PRIVATE ${ARG_DEFINITIONS})
+     endif()
+     target_link_libraries(${name} PUBLIC
+-        nanostack_port_linux nanostack_eventloop nanostack_libservice
++        ${NANOSTACK_PORT} nanostack_eventloop nanostack_libservice
+         MbedTLS::mbedtls MbedTLS::mbedcrypto MbedTLS::mbedx509)
+ endfunction()
+ 
+@@ -272,6 +290,9 @@
+     rcp/fhss/fhss_ws.c
+     # Excluded rcp/fhss/fhss_test_api.c
+ )
++if(NANOSTACK_RCP_INPROCESS)
++    list(REMOVE_ITEM NANOSTACK_RCP_SOURCES rcp/mac/rf_driver_storage.c)
++endif()
+ list(TRANSFORM NANOSTACK_RCP_SOURCES PREPEND ${NANOSTACK_ROOT}/)
+ set(NANOSTACK_RCP_SOURCES ${NANOSTACK_RCP_SOURCES} CACHE INTERNAL "")
+ 
+@@ -288,7 +309,7 @@
+         target_compile_definitions(${name} PRIVATE ${ARG_DEFINITIONS})
+     endif()
+     target_link_libraries(${name} PUBLIC
+-        nanostack_port_linux nanostack_eventloop nanostack_libservice
++        ${NANOSTACK_PORT} nanostack_eventloop nanostack_libservice
+         MbedTLS::mbedtls m)
+ endfunction()
+ 
