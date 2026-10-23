@@ -8,18 +8,28 @@
 # Needs: slc-cli (>= 6.0) + Java 21, and the Simplicity SDK checkout
 # (git-lfs objects for the xG25 RAIL library pulled). See README.md.
 #
-# usage: tools/sdk_generate.sh [SISDK_DIR]
+# usage: tools/sdk_generate.sh <board> [SISDK_DIR]
+#   board: brd4271a (EFR32FG25, 863-870 MHz, on BRD4001A) -> EU_1_1a radio config
+#          brd4270b (EFR32FG25, 902-928 MHz, on BRD4002A) -> NA_1_1b radio config
+# The radio config is picked by the SDK component radio_config_brd_wisun_singlephy
+# from the board. Output: sdk/gen/<board>/.
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-SISDK_DIR=${1:-${SISDK_DIR:-$REPO/../.deps/simplicity_sdk}}
+BOARD=${1:?usage: tools/sdk_generate.sh <brd4271a|brd4270b> [SISDK_DIR]}
+case "$BOARD" in
+    brd4271a) MAINBOARD=brd4001a ;;
+    brd4270b) MAINBOARD=brd4002a ;;
+    *) echo "unknown board $BOARD" >&2; exit 1 ;;
+esac
+SISDK_DIR=${2:-${SISDK_DIR:-$REPO/../.deps/simplicity_sdk}}
 SISDK_DIR=$(cd "$SISDK_DIR" && pwd)
-OUT=$REPO/sdk/gen
+OUT=$REPO/sdk/gen/$BOARD
 SLC=${SLC:-slc}
 
 rm -rf "$OUT"
 "$SLC" signature trust --sdk "$SISDK_DIR" >/dev/null
 "$SLC" generate -p "$REPO/sdk/efr32fg25_sdk.slcp" -s "$SISDK_DIR" -d "$OUT" \
-    -o cmake -nocp --no-daemon 2>&1 | grep -v "^Warning: Duplicate definition of register" || true
+    --with "$BOARD,$MAINBOARD" -o cmake -nocp --no-daemon 2>&1 | grep -v "^Warning: Duplicate definition of register" || true
 test -f "$OUT/cmake_gcc/efr32fg25_sdk.cmake" || { echo "slc generate failed" >&2; exit 1; }
 test -f "$OUT/autogen/rail_config.c" || { echo "rail_config.c not generated (Radio Configurator failed)" >&2; exit 1; }
 

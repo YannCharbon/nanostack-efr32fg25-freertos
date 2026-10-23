@@ -12,8 +12,8 @@ quality: experimental
 
 component:
   - id: EFR32FG25B222F1920IM56
-  - id: brd4270b
-  - id: brd4002a
+  # Radio board + mainboard are added by tools/sdk_generate.sh (--with),
+  # one generated tree per board: sdk/gen/<board>/.
   - id: sl_main
   - id: clock_manager
   - id: device_init

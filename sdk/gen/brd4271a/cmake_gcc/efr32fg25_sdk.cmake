@@ -1,0 +1,255 @@
+####################################################################
+# Automatically-generated file. Do not edit!                       #
+####################################################################
+
+if(NOT DEFINED SDK_PATH)
+  message(FATAL_ERROR "SDK_PATH (Simplicity SDK root) must be set before including this file")
+endif()
+
+add_library(slc OBJECT
+    "${SDK_PATH}/hardware/board/src/sl_board_control_gpio.c"
+    "${SDK_PATH}/hardware/board/src/sl_board_init.c"
+    "${SDK_PATH}/hardware/driver/configuration_over_swo/src/sl_cos.c"
+    "${SDK_PATH}/hardware/driver/mx25_flash_shutdown/src/sl_mx25_flash_shutdown_eusart/sl_mx25_flash_shutdown.c"
+    "${SDK_PATH}/platform/CMSIS/RTOS2/Source/os_systick.c"
+    "${SDK_PATH}/platform/common/src/sl_assert.c"
+    "${SDK_PATH}/platform/common/src/sl_cmsis_os2_common.c"
+    "${SDK_PATH}/platform/common/src/sl_core_cortexm.c"
+    "${SDK_PATH}/platform/common/src/sl_slist.c"
+    "${SDK_PATH}/platform/common/src/sl_string.c"
+    "${SDK_PATH}/platform/common/src/sl_syscalls.c"
+    "${SDK_PATH}/platform/common/src/sli_cmsis_os2_ext_task_register.c"
+    "${SDK_PATH}/platform/Device/SiliconLabs/EFR32FG25/Source/startup_efr32fg25.c"
+    "${SDK_PATH}/platform/Device/SiliconLabs/EFR32FG25/Source/system_efr32fg25.c"
+    "${SDK_PATH}/platform/driver/debug/src/sl_debug_swo.c"
+    "${SDK_PATH}/platform/driver/gpio/src/sl_gpio.c"
+    "${SDK_PATH}/platform/emdrv/dmadrv/src/dmadrv.c"
+    "${SDK_PATH}/platform/emlib/src/em_acmp.c"
+    "${SDK_PATH}/platform/emlib/src/em_burtc.c"
+    "${SDK_PATH}/platform/emlib/src/em_cmu.c"
+    "${SDK_PATH}/platform/emlib/src/em_emu.c"
+    "${SDK_PATH}/platform/emlib/src/em_eusart.c"
+    "${SDK_PATH}/platform/emlib/src/em_gpio.c"
+    "${SDK_PATH}/platform/emlib/src/em_ldma.c"
+    "${SDK_PATH}/platform/emlib/src/em_msc.c"
+    "${SDK_PATH}/platform/emlib/src/em_prs.c"
+    "${SDK_PATH}/platform/emlib/src/em_system.c"
+    "${SDK_PATH}/platform/emlib/src/em_timer.c"
+    "${SDK_PATH}/platform/emlib/src/em_vdac.c"
+    "${SDK_PATH}/platform/peripheral/src/sl_hal_eusart.c"
+    "${SDK_PATH}/platform/peripheral/src/sl_hal_gpio.c"
+    "${SDK_PATH}/platform/peripheral/src/sl_hal_prs.c"
+    "${SDK_PATH}/platform/peripheral/src/sl_hal_sysrtc.c"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/pa-conversions/pa_conversions_efr32.c"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/pa-conversions/pa_curves_efr32.c"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/rail_util_power_manager_init/sl_rail_util_power_manager_init.c"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/rail_util_sfm_sequencer/sl_rail_util_sfm_sequencer.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_attestation.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_cipher.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_entropy.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_hash.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_key_derivation.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_key_handling.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_signature.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sl_se_manager_util.c"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/src/sli_se_manager_mailbox.c"
+    "${SDK_PATH}/platform/security/sl_component/sli_psec_osal/src/sli_psec_osal_cmsis_rtos2.c"
+    "${SDK_PATH}/platform/service/clock_manager/src/sl_clock_manager.c"
+    "${SDK_PATH}/platform/service/clock_manager/src/sl_clock_manager_hal_s2.c"
+    "${SDK_PATH}/platform/service/clock_manager/src/sl_clock_manager_init.c"
+    "${SDK_PATH}/platform/service/clock_manager/src/sl_clock_manager_init_hal_s2.c"
+    "${SDK_PATH}/platform/service/device_init/src/sl_device_init_dcdc_s2.c"
+    "${SDK_PATH}/platform/service/device_manager/clocks/sl_device_clock_efr32xg25.c"
+    "${SDK_PATH}/platform/service/device_manager/devices/sl_device_peripheral_hal_efr32xg25.c"
+    "${SDK_PATH}/platform/service/device_manager/src/sl_device_clock.c"
+    "${SDK_PATH}/platform/service/device_manager/src/sl_device_gpio.c"
+    "${SDK_PATH}/platform/service/device_manager/src/sl_device_peripheral.c"
+    "${SDK_PATH}/platform/service/hfxo_manager/src/sl_hfxo_manager.c"
+    "${SDK_PATH}/platform/service/hfxo_manager/src/sl_hfxo_manager_hal_s2.c"
+    "${SDK_PATH}/platform/service/interrupt_manager/src/sl_interrupt_manager_cortexm.c"
+    "${SDK_PATH}/platform/service/iostream/src/sl_iostream.c"
+    "${SDK_PATH}/platform/service/iostream/src/sl_iostream_eusart.c"
+    "${SDK_PATH}/platform/service/iostream/src/sl_iostream_uart.c"
+    "${SDK_PATH}/platform/service/memory_manager/src/sl_memory_manager_region.c"
+    "${SDK_PATH}/platform/service/power_manager/src/common/sl_power_manager_common.c"
+    "${SDK_PATH}/platform/service/power_manager/src/common/sl_power_manager_em4.c"
+    "${SDK_PATH}/platform/service/power_manager/src/sleep_loop/sl_power_manager.c"
+    "${SDK_PATH}/platform/service/power_manager/src/sleep_loop/sl_power_manager_debug.c"
+    "${SDK_PATH}/platform/service/power_manager/src/sleep_loop/sl_power_manager_hal_s2.c"
+    "${SDK_PATH}/platform/service/sl_main/src/rtos/main_retarget.c"
+    "${SDK_PATH}/platform/service/sl_main/src/sl_main_init.c"
+    "${SDK_PATH}/platform/service/sl_main/src/sl_main_init_memory.c"
+    "${SDK_PATH}/platform/service/sl_main/src/sl_main_kernel.c"
+    "${SDK_PATH}/platform/service/sleeptimer/src/sl_sleeptimer.c"
+    "${SDK_PATH}/platform/service/sleeptimer/src/sl_sleeptimer_hal_burtc.c"
+    "${SDK_PATH}/platform/service/sleeptimer/src/sl_sleeptimer_hal_sysrtc.c"
+    "${SDK_PATH}/platform/service/sleeptimer/src/sl_sleeptimer_hal_timer.c"
+    "${SDK_PATH}/platform/service/udelay/src/sl_udelay.c"
+    "${SDK_PATH}/platform/service/udelay/src/sl_udelay_armv6m_gcc.S"
+    "${SDK_PATH}/util/third_party/freertos/cmsis/Source/cmsis_os2.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/croutine.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/event_groups.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/list.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/GCC/ARM_CM33_NTZ/non_secure/mpu_wrappers_v2_asm.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/GCC/ARM_CM33_NTZ/non_secure/port.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/MemMang/heap_4.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/SiliconLabs/cortexm/tick_power_manager.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/queue.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/stream_buffer.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/tasks.c"
+    "${SDK_PATH}/util/third_party/freertos/kernel/timers.c"
+    "${CMAKE_CURRENT_LIST_DIR}/../autogen/rail_config.c"
+    "${CMAKE_CURRENT_LIST_DIR}/../autogen/sl_board_default_init.c"
+    "${CMAKE_CURRENT_LIST_DIR}/../autogen/sl_event_handler.c"
+    "${CMAKE_CURRENT_LIST_DIR}/../autogen/sl_iostream_handles.c"
+    "${CMAKE_CURRENT_LIST_DIR}/../autogen/sl_iostream_init_eusart_instances.c"
+)
+
+target_include_directories(slc PUBLIC
+   "${CMAKE_CURRENT_LIST_DIR}/../config"
+   "${CMAKE_CURRENT_LIST_DIR}/../config/rail"
+   "${CMAKE_CURRENT_LIST_DIR}/../autogen"
+    "${SDK_PATH}/platform/Device/SiliconLabs/EFR32FG25/Include"
+    "${SDK_PATH}/platform/common/inc"
+    "${SDK_PATH}/hardware/board/inc"
+    "${SDK_PATH}/platform/service/clock_manager/inc"
+    "${SDK_PATH}/platform/service/clock_manager/src"
+    "${SDK_PATH}/platform/CMSIS/Core/Include"
+    "${SDK_PATH}/platform/CMSIS/RTOS2/Include"
+    "${SDK_PATH}/hardware/driver/configuration_over_swo/inc"
+    "${SDK_PATH}/platform/driver/debug/inc"
+    "${SDK_PATH}/platform/service/device_manager/inc"
+    "${SDK_PATH}/platform/service/device_init/inc"
+    "${SDK_PATH}/platform/emdrv/dmadrv/inc"
+    "${SDK_PATH}/platform/emdrv/dmadrv/inc/s2_signals"
+    "${SDK_PATH}/platform/emdrv/common/inc"
+    "${SDK_PATH}/platform/emlib/inc"
+    "${SDK_PATH}/util/third_party/freertos/kernel/include"
+    "${SDK_PATH}/util/third_party/freertos/cmsis/Include"
+    "${SDK_PATH}/util/third_party/freertos/kernel/portable/GCC/ARM_CM33_NTZ/non_secure"
+    "${SDK_PATH}/platform/driver/gpio/inc"
+    "${SDK_PATH}/platform/peripheral/inc"
+    "${SDK_PATH}/platform/service/hfxo_manager/inc"
+    "${SDK_PATH}/platform/service/interrupt_manager/inc"
+    "${SDK_PATH}/platform/service/interrupt_manager/src"
+    "${SDK_PATH}/platform/service/interrupt_manager/inc/arm"
+    "${SDK_PATH}/platform/service/iostream/inc"
+    "${SDK_PATH}/platform/service/memory_manager/inc"
+    "${SDK_PATH}/hardware/driver/mx25_flash_shutdown/inc/sl_mx25_flash_shutdown_eusart"
+    "${SDK_PATH}/platform/service/power_manager/inc"
+    "${SDK_PATH}/platform/radio/rail_lib/common"
+    "${SDK_PATH}/platform/radio/rail_lib/protocol/ble"
+    "${SDK_PATH}/platform/radio/rail_lib/protocol/ieee802154"
+    "${SDK_PATH}/platform/radio/rail_lib/protocol/wmbus"
+    "${SDK_PATH}/platform/radio/rail_lib/protocol/zwave"
+    "${SDK_PATH}/platform/radio/rail_lib/chip/efr32/efr32xg2x"
+    "${SDK_PATH}/platform/radio/rail_lib/protocol/sidewalk"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/pa-conversions"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/pa-conversions/efr32xg25"
+    "${SDK_PATH}/platform/radio/rail_lib/plugin/rail_util_power_manager_init"
+    "${SDK_PATH}/platform/security/sl_component/se_manager/inc"
+    "${SDK_PATH}/platform/service/sl_main/inc"
+    "${SDK_PATH}/platform/service/sl_main/src"
+    "${SDK_PATH}/platform/service/sleeptimer/inc"
+    "${SDK_PATH}/platform/security/sl_component/sli_psec_osal/inc"
+    "${SDK_PATH}/platform/service/udelay/inc"
+)
+
+target_compile_definitions(slc PUBLIC
+    "EFR32FG25B222F1920IM56=1"
+    "SL_CODE_COMPONENT_SYSTEM=system"
+    "SL_BOARD_NAME=\"BRD4271A\""
+    "SL_BOARD_REV=\"A06\""
+    "HARDWARE_BOARD_DEFAULT_RF_BAND_868=1"
+    "HARDWARE_BOARD_SUPPORTS_1_RF_BAND=1"
+    "HARDWARE_BOARD_SUPPORTS_RF_BAND_868=1"
+    "HFXO_FREQ=39000000"
+    "SL_CLOCK_MANAGER_AUTO_BAND_VALID=1"
+    "SL_CODE_COMPONENT_CLOCK_MANAGER=clock_manager"
+    "configNUM_SDK_THREAD_LOCAL_STORAGE_POINTERS=2"
+    "SL_COMPONENT_CATALOG_PRESENT=1"
+    "SL_CODE_COMPONENT_DEVICE_PERIPHERAL=device_peripheral"
+    "SL_CODE_COMPONENT_DMADRV=dmadrv"
+    "SL_CODE_COMPONENT_FREERTOS_KERNEL=freertos_kernel"
+    "SL_CODE_COMPONENT_GPIO=gpio"
+    "SL_CODE_COMPONENT_HAL_COMMON=hal_common"
+    "SL_CODE_COMPONENT_HAL_GPIO=hal_gpio"
+    "SL_CODE_COMPONENT_HAL_SYSRTC=hal_sysrtc"
+    "SL_CODE_COMPONENT_INTERRUPT_MANAGER=interrupt_manager"
+    "CMSIS_NVIC_VIRTUAL=1"
+    "CMSIS_NVIC_VIRTUAL_HEADER_FILE=\"cmsis_nvic_virtual.h\""
+    "SL_CODE_COMPONENT_POWER_MANAGER=power_manager"
+    "SL_RAIL_LIB_MULTIPROTOCOL_SUPPORT=0"
+    "SL_RAIL_UTIL_PA_CONFIG_HEADER=<sl_rail_util_pa_config.h>"
+    "SL_CODE_COMPONENT_SE_MANAGER=se_manager"
+    "SL_CODE_COMPONENT_CORE=core"
+    "SL_CODE_COMPONENT_SLEEPTIMER=sleeptimer"
+    "SL_CODE_COMPONENT_PSEC_OSAL=psec_osal"
+)
+
+target_link_libraries(slc PUBLIC
+    "-Wl,--start-group"
+    "gcc"
+    "c"
+    "m"
+    "nosys"
+    "${SDK_PATH}/platform/radio/rail_lib/autogen/librail_release/librail_efr32xg25_gcc_release.a"
+    "-Wl,--end-group"
+)
+target_compile_options(slc PUBLIC
+    $<$<COMPILE_LANGUAGE:C>:-mcpu=cortex-m33>
+    $<$<COMPILE_LANGUAGE:C>:-mthumb>
+    $<$<COMPILE_LANGUAGE:C>:-mfpu=fpv5-sp-d16>
+    $<$<COMPILE_LANGUAGE:C>:-mfloat-abi=hard>
+    $<$<COMPILE_LANGUAGE:C>:-mcmse>
+    $<$<COMPILE_LANGUAGE:C>:-Wall>
+    $<$<COMPILE_LANGUAGE:C>:-Wextra>
+    $<$<COMPILE_LANGUAGE:C>:-Os>
+    $<$<COMPILE_LANGUAGE:C>:-fdata-sections>
+    $<$<COMPILE_LANGUAGE:C>:-ffunction-sections>
+    $<$<COMPILE_LANGUAGE:C>:-fomit-frame-pointer>
+    $<$<COMPILE_LANGUAGE:C>:-g>
+    $<$<COMPILE_LANGUAGE:C>:-fno-lto>
+    $<$<COMPILE_LANGUAGE:C>:--specs=nano.specs>
+    $<$<COMPILE_LANGUAGE:CXX>:-mcpu=cortex-m33>
+    $<$<COMPILE_LANGUAGE:CXX>:-mthumb>
+    $<$<COMPILE_LANGUAGE:CXX>:-mfpu=fpv5-sp-d16>
+    $<$<COMPILE_LANGUAGE:CXX>:-mfloat-abi=hard>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-mcmse>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+    $<$<COMPILE_LANGUAGE:CXX>:-Os>
+    $<$<COMPILE_LANGUAGE:CXX>:-fdata-sections>
+    $<$<COMPILE_LANGUAGE:CXX>:-ffunction-sections>
+    $<$<COMPILE_LANGUAGE:CXX>:-fomit-frame-pointer>
+    $<$<COMPILE_LANGUAGE:CXX>:-g>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-lto>
+    $<$<COMPILE_LANGUAGE:CXX>:--specs=nano.specs>
+    $<$<COMPILE_LANGUAGE:ASM>:-mcpu=cortex-m33>
+    $<$<COMPILE_LANGUAGE:ASM>:-mthumb>
+    $<$<COMPILE_LANGUAGE:ASM>:-mfpu=fpv5-sp-d16>
+    $<$<COMPILE_LANGUAGE:ASM>:-mfloat-abi=hard>
+    "$<$<COMPILE_LANGUAGE:ASM>:SHELL:-x assembler-with-cpp>"
+)
+
+set(post_build_command )
+set_property(TARGET slc PROPERTY C_STANDARD 17)
+set_property(TARGET slc PROPERTY CXX_STANDARD 17)
+set_property(TARGET slc PROPERTY CXX_EXTENSIONS OFF)
+
+target_link_options(slc INTERFACE
+    -mcpu=cortex-m33
+    -mthumb
+    -mfpu=fpv5-sp-d16
+    -mfloat-abi=hard
+    "-T${CMAKE_CURRENT_LIST_DIR}/../autogen/linkerfile.ld"
+    --specs=nano.specs
+    -Wl,--wrap=main
+    -fno-lto
+    -Wl,--gc-sections
+)
+
