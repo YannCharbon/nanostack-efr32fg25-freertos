@@ -346,6 +346,11 @@ void ns_port_get_stats(struct ns_port_stats *st)
     *st = stats;
 }
 
+void ns_port_clear_stats(void)
+{
+    memset(&stats, 0, sizeof(stats));
+}
+
 void ns_port_run(void)
 {
     for (;;) {

@@ -7,8 +7,8 @@
  *   udp <ipv6> <text>     UDP datagram to port 1234 (peer answers "ack:...")
  *   heap                  heap statistics
  *   tasks                 FreeRTOS task stack high-water marks
- *   trace <0-5>           runtime trace level (0 none .. 5 debug)
- *   radio clear           reset radio statistics
+ *   trace <0-5> [grps]    runtime trace level (0 none .. 5 debug), optional group filter (e.g. fhss,app)
+ *   radio clear           reset radio and port (timer lateness) statistics
  *   reset                 reboot
  *   nodes                 (BR) RPL routing table
  *
@@ -48,7 +48,7 @@ static void cmd_help(void)
 {
     ns_port_console_printf(
         "commands: status [-v] | ping <ipv6> [count] [size] | udp <ipv6> <text> | heap | tasks |\r\n"
-        "          trace <0-5> | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes");
+        "          trace <0-5> [groups] | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes");
 }
 
 static void cmd_heap(void)
@@ -133,10 +133,20 @@ static void execute(char *s)
         cmd_heap();
     } else if (!strcmp(argv[0], "tasks")) {
         cmd_tasks();
-    } else if (!strcmp(argv[0], "trace") && argc == 2) {
+    } else if (!strcmp(argv[0], "trace") && (argc == 2 || argc == 3)) {
+        /* trace <level> [group,group,...]: optional include filter (ns_trace
+         * keeps the pointer, so the string lives in a static buffer). */
+        static char groups[64];
         cmd_trace(atoi(argv[1]));
+        if (argc == 3) {
+            strncpy(groups, argv[2], sizeof(groups) - 1);
+            mbed_trace_include_filters_set(groups);
+        } else {
+            mbed_trace_include_filters_set(NULL);
+        }
     } else if (!strcmp(argv[0], "radio") && argc == 2 && !strcmp(argv[1], "clear")) {
         rail_phy_clear_stats();
+        ns_port_clear_stats();
     } else if (!strcmp(argv[0], "reset")) {
         NVIC_SystemReset();
     } else if (!app_role_cli(argc, argv)) {

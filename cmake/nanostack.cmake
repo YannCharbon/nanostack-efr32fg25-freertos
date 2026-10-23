@@ -54,8 +54,9 @@ set(NS_EVENTLOOP_SOURCES
 # Flags for the (inherited, warning-heavy) stack code: GCC >= 14 needs
 # -std=gnu17 -fpermissive (stack README). Warnings are not the gate here.
 set(NS_STACK_COPTS -std=gnu17 -fpermissive -w)
-# Trace level compiled in (ns_trace). 4 = INFO, 5 = DEBUG.
-set(NS_TRACE_MAX_LEVEL "TRACE_LEVEL_INFO" CACHE STRING "MBED_TRACE_MAX_LEVEL for stack traces")
+# Trace level compiled in (ns_trace): debug traces included (runtime level
+# selects what is printed; e.g. the FHSS "synch to parent" drift trace is DEBUG).
+set(NS_TRACE_MAX_LEVEL "TRACE_LEVEL_DEBUG" CACHE STRING "MBED_TRACE_MAX_LEVEL for stack traces")
 set(NS_STACK_DEFS MBED_TRACE_MAX_LEVEL=${NS_TRACE_MAX_LEVEL})
 
 add_library(nanostack_libservice_fw STATIC ${NS_LIBSERVICE_SOURCES})

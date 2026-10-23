@@ -88,6 +88,7 @@ struct ns_port_stats {
     uint32_t max_timer_lateness_us;   /* deadline -> callback in stack task */
 };
 void ns_port_get_stats(struct ns_port_stats *st);
+void ns_port_clear_stats(void);
 
 /* Callback timer slots in use / available (diagnostics). */
 int ns_port_callback_timers_used(void);
