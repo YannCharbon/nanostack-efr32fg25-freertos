@@ -23,6 +23,8 @@ foreach(d NANOSTACK_DIR SISDK_DIR MBEDTLS_DIR)
 endforeach()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O1")
+# The fake RAIL models the NA/1b channel plan (fake_rail.c host_channels).
+add_compile_definitions(FW_REGION_NA=1)
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra app compile definitions, as in the firmware build")
 
 # mbedTLS 3.0.0 with the target configuration
@@ -44,7 +46,7 @@ target_include_directories(host_sdk INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${RAIL_DIR}/common ${RAIL_DIR}/chip/efr32/efr32xg2x ${RAIL_DIR}/protocol/ieee802154
     ${SISDK_DIR}/platform/common/inc
-    ${FW_DIR}/sdk/gen/autogen
+    ${FW_DIR}/sdk/gen/brd4270b/autogen
     ${FW_DIR}/drivers/rail
     ${NS_PORT_INCLUDE_DIR}
     ${NANOSTACK_DIR}/nanostack

@@ -82,7 +82,7 @@ static void configure_ws(void)
     ret = ws_management_fhss_broadcast_channel_function_configure(g_node.ws_if, WS_DH1CF, 0xffff,
                                                                   WS_FHSS_BC_DWELL_INTERVAL, WS_FHSS_BC_INTERVAL);
     if (ret) tr_warn("bc channel function: %d", ret);
-    if (APP_WS_CHAN_FIRST != 0 || APP_WS_CHAN_LAST != 128) {
+    if (APP_WS_CHAN_FIRST != 0 || APP_WS_CHAN_LAST != APP_WS_CHAN_LAST_DEFAULT) {
         uint32_t mask[8] = { 0 };
         for (unsigned ch = APP_WS_CHAN_FIRST; ch <= APP_WS_CHAN_LAST && ch < 256; ch++) {
             mask[ch / 32] |= 1u << (ch % 32);

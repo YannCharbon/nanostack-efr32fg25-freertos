@@ -117,16 +117,15 @@ static uint8_t rx_fifo[RAIL_PHY_RX_FIFO_SIZE] __attribute__((aligned(4)));
 
 static struct rail_phy_stats stats;
 
-static const phy_rf_channel_configuration_s phy_na_1b = {
-    .channel_0_center_frequency = 902200000,
-    .channel_spacing = 200000,
-    .datarate = 50000,
-    .number_of_channels = 129,
+/* Filled in rail_phy_hw_init() from the generated rail_config.c (channel
+ * plan) and rail_phy_config.h (data rate, modulation index of the region). */
+static phy_rf_channel_configuration_s phy_cfg = {
+    .datarate = RAIL_PHY_DATARATE,
     .modulation = M_2FSK,
-    .modulation_index = MODULATION_INDEX_1_0,
+    .modulation_index = RAIL_PHY_MOD_INDEX,
 };
 static const phy_device_channel_page_s phy_channel_pages[] = {
-    { CHANNEL_PAGE_0, &phy_na_1b },
+    { CHANNEL_PAGE_0, &phy_cfg },
     { CHANNEL_PAGE_0, NULL },
 };
 
@@ -573,14 +572,16 @@ static __attribute__((unused)) int16_t tx_power_from_percent(uint8_t pct)
 
 static void check_rf_config(const phy_rf_channel_configuration_s *c)
 {
-    if (c->channel_0_center_frequency != phy_na_1b.channel_0_center_frequency
-            || c->channel_spacing != phy_na_1b.channel_spacing
-            || c->datarate != phy_na_1b.datarate
+    if (c->channel_0_center_frequency != phy_cfg.channel_0_center_frequency
+            || c->channel_spacing != phy_cfg.channel_spacing
+            || c->datarate != phy_cfg.datarate
             || c->number_of_channels > rail_ch_count) {
         tr_err("stack PHY (ch0 %lu Hz, %lu Hz, %lu bps, %u ch) does not match the radio config "
-               "(ch0 902200000 Hz, 200000 Hz, 50000 bps, %u ch): regenerate rail_config.c",
+               "(ch0 %lu Hz, %lu Hz, %lu bps, %u ch): wrong FW_REGION/FW_BOARD or regenerate rail_config.c",
                (unsigned long)c->channel_0_center_frequency, (unsigned long)c->channel_spacing,
-               (unsigned long)c->datarate, c->number_of_channels, rail_ch_count);
+               (unsigned long)c->datarate, c->number_of_channels,
+               (unsigned long)phy_cfg.channel_0_center_frequency, (unsigned long)phy_cfg.channel_spacing,
+               (unsigned long)phy_cfg.datarate, rail_ch_count);
     } else {
         tr_info("PHY config ok: ch0 %lu Hz, spacing %lu Hz, %lu bps, %u channels",
                 (unsigned long)c->channel_0_center_frequency, (unsigned long)c->channel_spacing,
@@ -727,6 +728,9 @@ void rail_phy_hw_init(void)
     RAIL_ConfigChannels(rh, channelConfigs[0], NULL);
     rail_ch_offset = channelConfigs[0]->configs[0].channelNumberStart;
     rail_ch_count = channelConfigs[0]->configs[0].channelNumberEnd - rail_ch_offset + 1;
+    phy_cfg.channel_0_center_frequency = channelConfigs[0]->configs[0].baseFrequency;
+    phy_cfg.channel_spacing = channelConfigs[0]->configs[0].channelSpacing;
+    phy_cfg.number_of_channels = rail_ch_count;
     RAIL_IEEE802154_Init(rh, &ieee_cfg);
     /* SUN FSK: 2-byte PHR, per-packet FCS length / whitening, frames > 127 B */
     RAIL_IEEE802154_ConfigGOptions(rh, RAIL_IEEE802154_G_OPTION_GB868, RAIL_IEEE802154_G_OPTION_GB868);
@@ -741,7 +745,7 @@ void rail_phy_hw_init(void)
     RAIL_ConfigEvents(rh, RAIL_EVENTS_ALL, TX_EVENTS | RX_EVENTS | RAIL_EVENT_CAL_NEEDED);
     symbol_rate = RAIL_GetSymbolRate(rh);
     if (!symbol_rate) {
-        symbol_rate = phy_na_1b.datarate;   /* 2-FSK: symbol rate = bit rate */
+        symbol_rate = phy_cfg.datarate;     /* 2-FSK: symbol rate = bit rate */
     }
     stats.cca_threshold_dbm = cca_threshold_dbm;
 }

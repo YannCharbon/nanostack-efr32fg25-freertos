@@ -14,6 +14,23 @@ set(SISDK_DIR "${CMAKE_SOURCE_DIR}/../.deps/simplicity_sdk" CACHE PATH
 set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
     "Mbed TLS v3.0.0 source tree")
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
+set(FW_BOARD "brd4271a" CACHE STRING "Radio board: brd4271a (863-870 MHz, Wi-SUN EU) or brd4270b (902-928 MHz, Wi-SUN NA)")
+set_property(CACHE FW_BOARD PROPERTY STRINGS brd4271a brd4270b)
+if(FW_BOARD STREQUAL "brd4271a")
+    set(_region_default EU)
+elseif(FW_BOARD STREQUAL "brd4270b")
+    set(_region_default NA)
+else()
+    message(FATAL_ERROR "FW_BOARD must be brd4271a or brd4270b")
+endif()
+set(FW_REGION "${_region_default}" CACHE STRING "Wi-SUN regulatory domain: EU (class 1, mode 1a) or NA (class 1, mode 1b)")
+set_property(CACHE FW_REGION PROPERTY STRINGS EU NA)
+if(NOT FW_REGION STREQUAL _region_default)
+    # The radio config generated for a board is single-band (sdk/gen/<board>/).
+    message(FATAL_ERROR "FW_REGION=${FW_REGION} does not match FW_BOARD=${FW_BOARD} (${_region_default} only)")
+endif()
+add_compile_definitions(FW_REGION_${FW_REGION}=1)
+message(STATUS "Firmware variant: board ${FW_BOARD}, Wi-SUN region ${FW_REGION}")
 
 foreach(d NANOSTACK_DIR SISDK_DIR MBEDTLS_DIR)
     get_filename_component(${d} "${${d}}" ABSOLUTE)
@@ -36,7 +53,7 @@ endif()
 # heap_4, sleeptimer, power manager, SE manager, iostream VCOM, RAIL PA util,
 # rail_config.c) plus its include paths, defines, CPU flags and linker script.
 set(SDK_PATH "${SISDK_DIR}")
-include(sdk/gen/cmake_gcc/efr32fg25_sdk.cmake)
+include(sdk/gen/${FW_BOARD}/cmake_gcc/efr32fg25_sdk.cmake)
 # The SDK sources are not ours: keep their warnings out of the way.
 target_compile_options(slc PRIVATE -w)
 # CPU flags and --specs=nano.specs already come from the toolchain file for

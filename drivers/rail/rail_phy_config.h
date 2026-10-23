@@ -6,6 +6,20 @@
 #ifndef RAIL_PHY_CONFIG_H
 #define RAIL_PHY_CONFIG_H
 
+/* PHY data rate and modulation index of the radio config (the channel plan
+ * itself is read from rail_config.c). NA/1b: 50 kbit/s, h = 1.0;
+ * EU/1a: 50 kbit/s, h = 0.5. FW_REGION_EU comes from the build (FW_REGION). */
+#ifndef RAIL_PHY_DATARATE
+#define RAIL_PHY_DATARATE 50000
+#endif
+#ifndef RAIL_PHY_MOD_INDEX
+#ifdef FW_REGION_EU
+#define RAIL_PHY_MOD_INDEX MODULATION_INDEX_0_5
+#else
+#define RAIL_PHY_MOD_INDEX MODULATION_INDEX_1_0
+#endif
+#endif
+
 /* FCS length written in the PHR (FCS Type bit): 4 (CRC-32, Wi-SUN FAN) or 2. */
 #ifndef RAIL_PHY_FCS_LEN
 #define RAIL_PHY_FCS_LEN 4

@@ -15,15 +15,29 @@
 #define APP_NETWORK_NAME "Wi-SUN Network"
 #endif
 
-/* Must match the radio configuration (sdk/gen/autogen/rail_config.c). */
+/* Must match the radio configuration (sdk/gen/<board>/autogen/rail_config.c),
+ * selected by the build's FW_REGION:
+ *   EU: domain EU, operating class 1 (863.1 MHz + n*100 kHz, 69 channels),
+ *       PHY mode 1a (50 kbit/s 2-FSK, h = 0.5)  - BRD4271A
+ *   NA: domain NA, operating class 1 (902.2 MHz + n*200 kHz, 129 channels),
+ *       PHY mode 1b (50 kbit/s 2-FSK, h = 1.0)  - BRD4270B */
+#ifdef FW_REGION_EU
+#define APP_WS_DOMAIN_DEFAULT REG_DOMAIN_EU
+#define APP_WS_MODE_DEFAULT   0x1a
+#define APP_WS_CHAN_LAST_DEFAULT 68
+#else
+#define APP_WS_DOMAIN_DEFAULT REG_DOMAIN_NA
+#define APP_WS_MODE_DEFAULT   0x1b
+#define APP_WS_CHAN_LAST_DEFAULT 128
+#endif
 #ifndef APP_WS_DOMAIN
-#define APP_WS_DOMAIN REG_DOMAIN_NA
+#define APP_WS_DOMAIN APP_WS_DOMAIN_DEFAULT
 #endif
 #ifndef APP_WS_CLASS
 #define APP_WS_CLASS 1
 #endif
 #ifndef APP_WS_MODE
-#define APP_WS_MODE 0x1b
+#define APP_WS_MODE APP_WS_MODE_DEFAULT
 #endif
 
 /* Allowed channel range (Wi-SUN channel numbers, inclusive). Default: the
@@ -40,7 +54,7 @@
 #define APP_WS_CHAN_FIRST 0
 #endif
 #ifndef APP_WS_CHAN_LAST
-#define APP_WS_CHAN_LAST 128
+#define APP_WS_CHAN_LAST APP_WS_CHAN_LAST_DEFAULT
 #endif
 
 #ifndef APP_WS_SIZE
