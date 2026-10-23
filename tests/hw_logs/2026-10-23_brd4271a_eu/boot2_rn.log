@@ -1,0 +1,133 @@
+1792746527.021 [3] [INFO][app ]: nanostack-efr32fg25-freertos RN starting, RAIL 2.19.3
+1792746527.033           trace <0-5> [groups] | radio clear | reset
+1792746527.063 [106] [INFO][addr]: Address added to IF 1: fe80::b635:22ff:fe98:2ea6
+1792746527.101 [107] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746546.122 [19070] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746552.340 [25244] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746557.505 == RN b43522fffe982ea6 up 30s ready=0 (first after 0s, 0 times) heap free 184648/204800 min 182488
+1792746557.511    join_state=1 pan_id=0xffff parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746557.514    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746560.864 [33708] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746566.376 [39182] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746573.795 [46550] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746582.920 [55611] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746587.920 == RN b43522fffe982ea6 up 60s ready=0 (first after 0s, 0 times) heap free 184648/204800 min 182488
+1792746587.928    join_state=1 pan_id=0xffff parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746587.933    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746592.450 [65072] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746601.982 [74033] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746610.804 [83289] [INFO][wsbs]: selected parent:b4:35:22:ff:fe:98:23:91 panid 50145
+1792746610.889 [83389] [INFO][wsbs]: authentication start
+1792746612.619 [85051] [INFO][eaps]: EAP-TLS start
+1792746617.991 [90413] [INFO][sfwh]: 4WH: init
+1792746617.993 [90414] [INFO][sfwh]: 4WH: recv Message 1
+1792746618.008 [90414] [INFO][sfwh]: 4WH: start
+1792746618.013 [90415] [INFO][sfwh]: 4WH: send Message 2
+1792746618.261 [90683] [INFO][sfwh]: 4WH: recv Message 3
+1792746618.271 [90684] [INFO][sfwh]: 4WH: send Message 4
+1792746618.276 [90684] [INFO][sfwh]: 4WH: finish, wait Message 3 retry
+1792746618.288 [90684] [INFO][wsbs]: authentication success eui64:b4:35:22:ff:fe:98:23:91
+1792746618.716 [91135] [INFO][sgkh]: GKH init
+1792746618.721 [91135] [INFO][sgkh]: GKH: recv Message 1
+1792746618.728 [91136] [INFO][sgkh]: GKH start
+1792746618.733 [91136] [INFO][sgkh]: GKH: send Message 2
+1792746618.736 [91137] [INFO][sgkh]: GKH finish
+1792746618.878 [91231] [INFO][sgkh]: GKH init
+1792746618.883 [91231] [INFO][sgkh]: GKH: recv Message 1
+1792746618.891 [91232] [INFO][sgkh]: GKH start
+1792746618.893 [91232] [INFO][sgkh]: GKH: send Message 2
+1792746618.898 [91232] [INFO][sgkh]: GKH finish
+1792746619.041 [91388] [INFO][sgkh]: GKH init
+1792746619.046 [91388] [INFO][sgkh]: GKH: recv Message 1
+1792746619.053 [91389] [INFO][sgkh]: GKH start
+1792746619.058 [91389] [INFO][sgkh]: GKH: send Message 2
+1792746619.061 [91389] [INFO][sgkh]: GKH finish
+1792746619.321 == RN b43522fffe982ea6 up 91s ready=0 (first after 0s, 0 times) heap free 180768/204800 min 165048
+1792746619.328    join_state=3 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746619.331    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746623.186 [95309] [INFO][eaps]: EAP-TLS finished
+1792746623.697 [96105] [INFO][sgkh]: GKH finished
+1792746623.796 [96205] [INFO][sgkh]: GKH finished
+1792746623.853 [96220] [INFO][wsbs]: learn network configuration
+1792746623.896 [96304] [INFO][sgkh]: GKH finished
+1792746649.687 == RN b43522fffe982ea6 up 121s ready=0 (first after 0s, 0 times) heap free 183264/204800 min 165048
+1792746649.695    join_state=4 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-12 rsl_out=-13 routing_cost=0
+1792746649.700    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746657.364 [129452] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2391
+1792746658.832 [130990] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2391
+1792746659.004 [131136] [INFO][addr]: Address added to IF 1: fd12:3456::b635:22ff:fe98:2ea6
+1792746672.425 [144481] [INFO][app ]: network event on if 1: ARM_NWK_BOOTSTRAP_READY
+1792746672.434 == RN b43522fffe982ea6 up 144s ready=1 (first after 144s, 1 times) heap free 182008/204800 min 165048
+1792746672.443    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746672.445    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746672.453    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746673.328 >>> radio clear
+1792746673.353 >>> trace 5 fhss
+1792746680.053 == RN b43522fffe982ea6 up 152s ready=1 (first after 144s, 1 times) heap free 182008/204800 min 165048
+1792746680.060    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746680.065    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746680.073    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746710.424 == RN b43522fffe982ea6 up 182s ready=1 (first after 144s, 1 times) heap free 181800/204800 min 165048
+1792746710.432    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746710.434    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746710.439    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746734.865 [206463] [DBG ][fhss]: synch to parent: b4:35:22:ff:fe:98:23:91, drift: 1ms in 111 seconds, compensation: 9ns per ms
+1792746740.792 == RN b43522fffe982ea6 up 212s ready=1 (first after 144s, 1 times) heap free 182440/204800 min 165048
+1792746740.802    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746740.805    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746740.810    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746771.163 == RN b43522fffe982ea6 up 242s ready=1 (first after 144s, 1 times) heap free 182440/204800 min 165048
+1792746771.170    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746771.175    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746771.178    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746793.330 >>> trace 4
+1792746793.348 >>> status -v
+1792746793.384 == RN b43522fffe982ea6 up 264s ready=1 (first after 144s, 1 times) heap free 182440/204800 min 165048
+1792746793.394    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-12 rsl_out=-13 routing_cost=0
+1792746793.397    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746793.402    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746793.414    radio: ch=54 rx_ok=11 rx_crc=0 rx_ovf=0 rx_ringfull=0 | tx_req=693 ok=692 cca_busy=1 cca_busy_rx=0 fail=0 missed=0 late=0 aborted=0
+1792746793.422    radio: sched_refused=3 tx_start_err=0 (last status 0x0, state 0x0) tx_underflow/other=0
+1792746793.429    radio: ack_tx=0 ack_lat_max=0us prepare_late_max=147us cca_thr=-60dBm txpwr=10.0dBm cal=0
+1792746793.442    port: loops=19814 timer_cb=14725 fhss_cb=707 timer_late_max=676us cb_timers=6 trace_dropped=0 stack_hwm=5712B
+1792746795.339 >>> ping fd12:3456::b635:22ff:fe98:2391 10 32
+1792746795.729 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=1 time=251 ms
+1792746796.734 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=2 time=250 ms
+1792746797.767 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=3 time=261 ms
+1792746798.779 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=4 time=251 ms
+1792746799.814 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=5 time=264 ms
+1792746800.814 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=6 time=243 ms
+1792746801.707 == RN b43522fffe982ea6 up 272s ready=1 (first after 144s, 1 times) heap free 182072/204800 min 165048
+1792746801.714    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-12 rsl_out=-13 routing_cost=0
+1792746801.719    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746801.722    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746802.934 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=7 time=1016 ms
+1792746803.079 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=8 time=251 ms
+1792746803.894 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=9 time=261 ms
+1792746804.919 32 bytes from fd12:3456::b635:22ff:fe98:2391: icmp_seq=10 time=266 ms
+1792746808.687 --- fd12:3456::b635:22ff:fe98:2391 ping statistics: 10 transmitted, 10 received, 0% loss, rtt min/avg/max = 243/331/1016 ms
+1792746827.344 >>> udp fd12:3456::b635:22ff:fe98:2391 hello-from-rn
+1792746827.862 udp rx from [fd12:3456::b635:22ff:fe98:2391]:1234 (17 bytes): ack:hello-from-rn
+1792746827.870 [298808] [INFO][test]: udp rx from fd12:3456::b635:22ff:fe98:2391: ack:hello-from-rn
+1792746831.880 == RN b43522fffe982ea6 up 302s ready=1 (first after 144s, 1 times) heap free 182032/204800 min 165048
+1792746831.887    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-13 rsl_out=-13 routing_cost=0
+1792746831.892    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746831.895    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746833.525 udp rx from [fd12:3456::b635:22ff:fe98:2391]:1234 (13 bytes): hello-from-br
+1792746833.532 [304431] [INFO][test]: udp rx from fd12:3456::b635:22ff:fe98:2391: hello-from-br
+1792746839.351 >>> heap
+1792746839.362 >>> status -v
+1792746839.383 >>> tasks
+1792746839.396 heap: total 204800 free 182360 min-ever 165048 largest 181584 allocs 19219 frees 19100 failed 0
+1792746839.402 == RN b43522fffe982ea6 up 310s ready=1 (first after 144s, 1 times) heap free 182360/204800 min 165048
+1792746839.410    join_state=5 pan_id=0xc3e1 parent=fe80::b635:22ff:fe98:2391 rsl_in=-12 rsl_out=-13 routing_cost=0
+1792746839.415    ws0 addr fe80::b635:22ff:fe98:2ea6
+1792746839.417    ws0 addr fd12:3456::b635:22ff:fe98:2ea6
+1792746839.430    radio: ch=33 rx_ok=57 rx_crc=0 rx_ovf=0 rx_ringfull=0 | tx_req=1023 ok=1015 cca_busy=2 cca_busy_rx=0 fail=0 missed=0 late=0 aborted=0
+1792746839.437    radio: sched_refused=3 tx_start_err=0 (last status 0x0, state 0x0) tx_underflow/other=0
+1792746839.447    radio: ack_tx=22 ack_lat_max=1519us prepare_late_max=164us cca_thr=-60dBm txpwr=10.0dBm cal=0
+1792746839.457    port: loops=27680 timer_cb=20380 fhss_cb=977 timer_late_max=1302us cb_timers=6 trace_dropped=0 stack_hwm=5712B
+1792746839.462   ns_stack     prio 54 stack free 5712 B
+1792746839.465   log_tx       prio  1 stack free 776 B
+1792746839.470   IDLE         prio  0 stack free 1068 B
+1792746839.475   Tmr Svc      prio 40 stack free 524 B

@@ -1,0 +1,12 @@
+# BR crash with newlib-nano (before commit fedc8a7), crash record printed at the next boot, then decoded with
+# arm-none-eabi-addr2line -f -p -e build/fw/wisun_br.elf <addr> (that build; addresses differ in later builds)
+1792745027.122 !! previous boot: FAULT in task ns_stack: pc=0803f418 lr=00000000 psr=a1100200 sp=20003910 exc_ret=ffffffed
+1792745027.136 !!   cfsr=00008200 hfsr=40000000 bfar=00000000 mmfar=00000000 icsr=00000803 r0=00000000 r1=00000000 r2=ffffffff r3=20003b18 r12=20003a0b
+1792745027.176 !!   stack code addrs: 0803e04c 0803e024 0803e04c 0803e024 0803f9ae 0803e024 08068cb6 08068cb6 0803e3b4 08068c9e 0803ec6a 0803d6d6 0803ec6a 08031aa2 08068c94 0805ae16 08068c9e 08017cca 08068c9e 080691fe 0803199e 08068c58 08068c66 08068c6e 08068c7e 08068c8a 08068c94 080691fe 08068c58 08068c66 08068c6e 08068bba 080181ca 08055488 080293c4 08055488 08018b10 080521aa 080293c4 08056b76 0802963a 080293c4 08017536 080064a0 08031498 0805aa74 080320f0 08004f50 08004876 0800456c
+# pc 0803f418 = memchr (newlib-nano)          <- strnlen of a NULL "%s" argument
+# 0803ec6a _vsnprintf_r / 0803d6d6 snprintf
+# 08031aa2 mbed_vtracef (ns_trace.c:429) / 0805ae16 mbed_tracef
+# 08017cca ws_pae_key_storage_trace (ws_pae_key_storage.c:660): format with %"PRIi64" arguments
+# 080181ca ws_pae_key_storage_supp_write / 08055488 kmp_service_timer_if_timeout
+# 080293c4 ws_pae_auth_active_supp_deleted / 080521aa ws_pae_lib_supp_list_to_inactive
+# 0802963a ws_pae_auth_fast_timer / 080064a0 core_timer_event_handle / 08031498 eventOS_scheduler_dispatch_event

@@ -1,0 +1,47 @@
+=== cold boot 1
+waiting up to 600s for the RN to join...
+RN joined after 120s (host clock, from RN reset); settling 120s
+BR GUA fd12:3456::b635:22ff:fe98:2391, RN GUA fd12:3456::b635:22ff:fe98:2ea6
+PASS: authentication (RN)
+PASS: RPL parent = BR
+PASS: DHCPv6 GUA (RN)
+PASS: BR lists the RN
+PASS: ping RN -> BR
+PASS: ping BR -> RN
+PASS: UDP RN -> BR (+ack)
+PASS: UDP BR -> RN (+ack)
+1792746488.078 --- fd12:3456::b635:22ff:fe98:2391 ping statistics: 10 transmitted, 6 received, 40% loss, rtt min/avg/max = 559/631/905 ms
+1792746504.082 --- fd12:3456::b635:22ff:fe98:2ea6 ping statistics: 10 transmitted, 7 received, 30% loss, rtt min/avg/max = 245/404/805 ms
+join 120s
+=== cold boot 2
+waiting up to 600s for the RN to join...
+RN joined after 147s (host clock, from RN reset); settling 120s
+BR GUA fd12:3456::b635:22ff:fe98:2391, RN GUA fd12:3456::b635:22ff:fe98:2ea6
+PASS: authentication (RN)
+PASS: RPL parent = BR
+PASS: DHCPv6 GUA (RN)
+PASS: BR lists the RN
+PASS: ping RN -> BR
+PASS: ping BR -> RN
+PASS: UDP RN -> BR (+ack)
+PASS: UDP BR -> RN (+ack)
+1792746808.687 --- fd12:3456::b635:22ff:fe98:2391 ping statistics: 10 transmitted, 10 received, 0% loss, rtt min/avg/max = 243/331/1016 ms
+1792746824.685 --- fd12:3456::b635:22ff:fe98:2ea6 ping statistics: 10 transmitted, 8 received, 20% loss, rtt min/avg/max = 187/249/518 ms
+join 147s
+=== cold boot 3
+waiting up to 600s for the RN to join...
+RN joined after 126s (host clock, from RN reset); settling 120s
+BR GUA fd12:3456::b635:22ff:fe98:2391, RN GUA fd12:3456::b635:22ff:fe98:2ea6
+PASS: authentication (RN)
+PASS: RPL parent = BR
+PASS: DHCPv6 GUA (RN)
+PASS: BR lists the RN
+PASS: ping RN -> BR
+PASS: ping BR -> RN
+PASS: UDP RN -> BR (+ack)
+PASS: UDP BR -> RN (+ack)
+1792747109.221 --- fd12:3456::b635:22ff:fe98:2391 ping statistics: 10 transmitted, 10 received, 0% loss, rtt min/avg/max = 431/541/951 ms
+1792747125.308 --- fd12:3456::b635:22ff:fe98:2ea6 ping statistics: 10 transmitted, 10 received, 0% loss, rtt min/avg/max = 103/116/129 ms
+join 126s
+
+[exited with code 0]

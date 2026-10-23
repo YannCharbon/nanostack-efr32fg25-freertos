@@ -1,0 +1,193 @@
+1792746523.508 [3] [INFO][app ]: nanostack-efr32fg25-freertos BR starting, RAIL 2.19.3
+1792746523.521           trace <0-5> [groups] | radio clear | reset | nodes
+1792746523.583 [106] [INFO][addr]: Address added to IF 1: fe80::b635:22ff:fe98:2391
+1792746523.586 [107] [INFO][br  ]: BBR started
+1792746523.611 [107] [INFO][wsbs]: Border router start network
+1792746523.643 [107] [INFO][rphy]: PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels
+1792746523.776 [153] [INFO][app ]: network event on if 1: ARM_NWK_BOOTSTRAP_READY
+1792746523.786 == BR b43522fffe982391 up 0s ready=1 (first after 0s, 1 times) heap free 179448/204800 min 179448
+1792746523.792    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746523.795    ws0 addr fe80::b635:22ff:fe98:2391
+1792746523.800    bbr: no info
+1792746525.155 [1745] [INFO][addr]: DAD passed on IF 2: fe80::1615:16ff:fe17:1819
+1792746526.557 [3139] [INFO][addr]: DAD passed on IF 2: fd12:3456::1615:16ff:fe17:1819
+1792746526.562 [3139] [INFO][app ]: network event on if 2: ARM_NWK_BOOTSTRAP_READY
+1792746533.495 [10007] [INFO][dhcp]: DHCPv6 address mode SLAAC, address list Stored
+1792746533.500 [10007] [INFO][dhcp]: DHCPv6 Valid lifetime 7200
+1792746533.502 [10007] [INFO][dhcp]: DHCPv6 maximum clients 65533
+1792746533.510 [10007] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2391
+1792746534.912 [11434] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2391
+1792746534.922 [11434] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2391
+1792746534.930 [11435] [INFO][addr]: Address added to IF 1: fd12:3456::b635:22ff:fe98:2391
+1792746535.882 [12395] [INFO][app ]: network event on if 1: ARM_NWK_BOOTSTRAP_READY
+1792746535.892 == BR b43522fffe982391 up 12s ready=1 (first after 0s, 2 times) heap free 179328/204800 min 178520
+1792746535.897    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746535.902    ws0 addr fe80::b635:22ff:fe98:2391
+1792746535.905    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746535.910    bh0 addr fe80::1615:16ff:fe17:1819
+1792746535.912    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746535.920    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 0 devices, instance 1 version 241
+1792746553.859 == BR b43522fffe982391 up 30s ready=1 (first after 0s, 2 times) heap free 179248/204800 min 178520
+1792746553.866    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746553.869    ws0 addr fe80::b635:22ff:fe98:2391
+1792746553.871    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746553.876    bh0 addr fe80::1615:16ff:fe17:1819
+1792746553.879    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746553.889    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 0 devices, instance 1 version 241
+1792746584.207 == BR b43522fffe982391 up 60s ready=1 (first after 0s, 2 times) heap free 179248/204800 min 178320
+1792746584.214    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746584.217    ws0 addr fe80::b635:22ff:fe98:2391
+1792746584.222    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746584.224    bh0 addr fe80::1615:16ff:fe17:1819
+1792746584.229    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746584.237    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 0 devices, instance 1 version 241
+1792746612.303 [88210] [INFO][eapa]: EAP-TLS start, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746614.858 == BR b43522fffe982391 up 90s ready=1 (first after 0s, 2 times) heap free 163248/204800 min 161912
+1792746614.866    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746614.871    ws0 addr fe80::b635:22ff:fe98:2391
+1792746614.873    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746614.878    bh0 addr fe80::1615:16ff:fe17:1819
+1792746614.881    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746614.888    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 0 devices, instance 1 version 241
+1792746617.936 [93685] [INFO][wspa]: PAE: start 4WH, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746617.945 [93685] [INFO][afwh]: 4WH: init
+1792746617.950 [93685] [INFO][afwh]: 4WH: start, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746617.968 [93686] [INFO][afwh]: 4WH: send Message 1, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.417 [93950] [INFO][afwh]: 4WH: recv Message 2, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.425 [93951] [INFO][afwh]: 4WH: send Message 3, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.572 [94215] [INFO][afwh]: 4WH: recv Message 4, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.577 [94215] [INFO][afwh]: 4WH: finish, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.585 [94215] [INFO][wspa]: PAE: start GKH, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.595 [94215] [INFO][agkh]: GKH init
+1792746618.600 [94215] [INFO][agkh]: GKH start, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.607 [94216] [INFO][agkh]: GKH: send Message 1, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.772 [94668] [INFO][agkh]: GKH: recv Message 2, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.777 [94668] [INFO][agkh]: GKH finish, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.782 [94669] [INFO][wspa]: PAE: start GKH, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.792 [94669] [INFO][agkh]: GKH init
+1792746618.800 [94669] [INFO][agkh]: GKH start, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.805 [94670] [INFO][agkh]: GKH: send Message 1, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.955 [94767] [INFO][agkh]: GKH: recv Message 2, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.960 [94767] [INFO][agkh]: GKH finish, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.967 [94767] [INFO][wspa]: PAE: start GKH, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.977 [94767] [INFO][agkh]: GKH init
+1792746618.983 [94767] [INFO][agkh]: GKH start, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746618.990 [94768] [INFO][agkh]: GKH: send Message 1, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746619.137 [94921] [INFO][agkh]: GKH: recv Message 2, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746619.142 [94922] [INFO][agkh]: GKH finish, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746622.691 [98592] [INFO][eapa]: EAP-TLS finished, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746623.290 [99189] [INFO][afwh]: 4WH: finished, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746623.691 [99588] [INFO][agkh]: GKH finished, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746623.805 [99688] [INFO][agkh]: GKH finished, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746624.002 [99886] [INFO][agkh]: GKH finished, eui-64: b4:35:22:ff:fe:98:2e:a6
+1792746639.064 [114816] [INFO][wsks]: KeyS write 0 0 PMK PMK CNT 4 PTK EUI64 PTKEUI64 GTKHASH 25:63:25:63:25:63:54:d4 GTKHASH4WH PMKLTIME 2879 2 PTKLTIME 1439 2
+1792746645.881 == BR b43522fffe982391 up 121s ready=1 (first after 0s, 2 times) heap free 168344/204800 min 158488
+1792746645.886    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746645.891    ws0 addr fe80::b635:22ff:fe98:2391
+1792746645.894    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746645.899    bh0 addr fe80::1615:16ff:fe17:1819
+1792746645.901    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746645.909    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 0 devices, instance 1 version 241
+1792746658.890 [134513] [INFO][dhcp]: dhcp service socket_sendto fe80::b635:22ff:fe98:2ea6
+1792746673.328 >>> radio clear
+1792746676.227 == BR b43522fffe982391 up 151s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746676.234    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746676.239    ws0 addr fe80::b635:22ff:fe98:2391
+1792746676.242    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746676.244    bh0 addr fe80::1615:16ff:fe17:1819
+1792746676.249    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746676.257    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746676.267    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746706.578 == BR b43522fffe982391 up 181s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746706.586    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746706.588    ws0 addr fe80::b635:22ff:fe98:2391
+1792746706.593    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746706.596    bh0 addr fe80::1615:16ff:fe17:1819
+1792746706.601    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746706.608    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746706.616    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746736.929 == BR b43522fffe982391 up 212s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746736.936    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746736.939    ws0 addr fe80::b635:22ff:fe98:2391
+1792746736.944    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746736.946    bh0 addr fe80::1615:16ff:fe17:1819
+1792746736.951    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746736.959    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746736.964    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746767.280 == BR b43522fffe982391 up 242s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746767.288    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746767.290    ws0 addr fe80::b635:22ff:fe98:2391
+1792746767.295    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746767.298    bh0 addr fe80::1615:16ff:fe17:1819
+1792746767.303    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746767.310    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746767.318    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746793.330 >>> status -v
+1792746793.843 == BR b43522fffe982391 up 268s ready=1 (first after 0s, 2 times) heap free 167760/204800 min 158488
+1792746793.851    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746793.853    ws0 addr fe80::b635:22ff:fe98:2391
+1792746793.858    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746793.861    bh0 addr fe80::1615:16ff:fe17:1819
+1792746793.866    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746793.873    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746793.881    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746793.883    bh0 null backhaul: 11 packets dropped
+1792746793.896    radio: ch=65 rx_ok=11 rx_crc=0 rx_ovf=0 rx_ringfull=0 | tx_req=827 ok=824 cca_busy=2 cca_busy_rx=0 fail=0 missed=0 late=0 aborted=0
+1792746793.903    radio: sched_refused=3 tx_start_err=0 (last status 0x0, state 0x0) tx_underflow/other=0
+1792746793.913    radio: ack_tx=0 ack_lat_max=0us prepare_late_max=159us cca_thr=-60dBm txpwr=10.0dBm cal=0
+1792746793.923    port: loops=20253 timer_cb=14733 fhss_cb=707 timer_late_max=696us cb_timers=6 trace_dropped=0 stack_hwm=5488B
+1792746797.648 == BR b43522fffe982391 up 272s ready=1 (first after 0s, 2 times) heap free 167368/204800 min 158488
+1792746797.653    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746797.658    ws0 addr fe80::b635:22ff:fe98:2391
+1792746797.661    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746797.666    bh0 addr fe80::1615:16ff:fe17:1819
+1792746797.668    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746797.676    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746797.686    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746811.342 >>> ping fd12:3456::b635:22ff:fe98:2ea6 10 32
+1792746811.657 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=1 time=187 ms
+1792746812.692 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=2 time=209 ms
+1792746815.440 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=4 time=518 ms
+1792746815.752 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=5 time=210 ms
+1792746816.775 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=6 time=211 ms
+1792746817.790 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=7 time=204 ms
+1792746819.917 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=9 time=256 ms
+1792746820.847 32 bytes from fd12:3456::b635:22ff:fe98:2ea6: icmp_seq=10 time=197 ms
+1792746824.685 --- fd12:3456::b635:22ff:fe98:2ea6 ping statistics: 10 transmitted, 8 received, 20% loss, rtt min/avg/max = 187/249/518 ms
+1792746827.521 udp rx from [fd12:3456::b635:22ff:fe98:2ea6]:1234 (13 bytes): hello-from-rn
+1792746827.529 [301960] [INFO][test]: udp rx from fd12:3456::b635:22ff:fe98:2ea6: hello-from-rn
+1792746827.976 == BR b43522fffe982391 up 302s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746827.984    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746827.987    ws0 addr fe80::b635:22ff:fe98:2391
+1792746827.991    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746827.994    bh0 addr fe80::1615:16ff:fe17:1819
+1792746827.999    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746828.006    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746828.014    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746833.348 >>> udp fd12:3456::b635:22ff:fe98:2ea6 hello-from-br
+1792746833.599 udp rx from [fd12:3456::b635:22ff:fe98:2ea6]:1234 (17 bytes): ack:hello-from-br
+1792746833.606 [307992] [INFO][test]: udp rx from fd12:3456::b635:22ff:fe98:2ea6: ack:hello-from-br
+1792746839.351 >>> nodes
+1792746839.364 >>> heap
+1792746839.375 >>> status -v
+1792746839.396 >>> tasks
+1792746839.409    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746839.409    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746839.409 heap: total 204800 free 168048 min-ever 158488 largest 165184 allocs 19279 frees 19119 failed 0
+1792746839.409 == BR b43522fffe982391 up 313s ready=1 (first after 0s, 2 times) heap free 168048/204800 min 158488
+1792746839.416    join_state=5 pan_id=0xc3e1 parent=:: rsl_in=-174 rsl_out=-174 routing_cost=0
+1792746839.419    ws0 addr fe80::b635:22ff:fe98:2391
+1792746839.424    ws0 addr fd12:3456::b635:22ff:fe98:2391
+1792746839.426    bh0 addr fe80::1615:16ff:fe17:1819
+1792746839.431    bh0 addr fd12:3456::1615:16ff:fe17:1819
+1792746839.439    bbr: dodag_id fd12:3456::1615:16ff:fe17:1819, 1 devices, instance 1 version 241
+1792746839.446    node fd12:3456::b635:22ff:fe98:2ea6 parent fd12:3456::b635:22ff:fe98:2391
+1792746839.449    bh0 null backhaul: 12 packets dropped
+1792746839.461    radio: ch=55 rx_ok=58 rx_crc=0 rx_ovf=0 rx_ringfull=0 | tx_req=1157 ok=1152 cca_busy=2 cca_busy_rx=0 fail=0 missed=0 late=0 aborted=0
+1792746839.469    radio: sched_refused=4 tx_start_err=0 (last status 0x0, state 0x0) tx_underflow/other=0
+1792746839.479    radio: ack_tx=22 ack_lat_max=1397us prepare_late_max=166us cca_thr=-60dBm txpwr=10.0dBm cal=0
+1792746839.489    port: loops=28122 timer_cb=20394 fhss_cb=977 timer_late_max=1455us cb_timers=6 trace_dropped=0 stack_hwm=5488B
+1792746839.491   ns_stack     prio 54 stack free 5488 B
+1792746839.496   log_tx       prio  1 stack free 764 B
+1792746839.501   IDLE         prio  0 stack free 1068 B
+1792746839.504   Tmr Svc      prio 40 stack free 524 B
