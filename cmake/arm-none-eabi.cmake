@@ -23,9 +23,13 @@ set(CMAKE_SIZE         ${_tc}arm-none-eabi-size    CACHE FILEPATH "")
 set(CMAKE_NM           ${_tc}arm-none-eabi-nm      CACHE FILEPATH "")
 
 set(CPU_FLAGS "-mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16")
-set(CMAKE_C_FLAGS_INIT   "${CPU_FLAGS} -ffunction-sections -fdata-sections -fomit-frame-pointer --specs=nano.specs")
+# Full newlib, NOT newlib-nano (--specs=nano.specs): nano's printf has no
+# 64-bit (%lld / PRIi64 / PRIu64) support, and the stack traces 64-bit values
+# with those formats (e.g. ws_pae_key_storage_trace()). nano then takes the
+# wrong arguments for the following %s and dereferences NULL: a BusFault on
+# the border router ~20 s after an RN authenticates (found on hardware).
+set(CMAKE_C_FLAGS_INIT   "${CPU_FLAGS} -ffunction-sections -fdata-sections -fomit-frame-pointer")
 set(CMAKE_ASM_FLAGS_INIT "${CPU_FLAGS} -x assembler-with-cpp")
-# (--specs=nano.specs reaches the link through CMAKE_C_FLAGS)
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,--gc-sections")
 
 # -Os -g for every build type: this is firmware, size matters and the debug

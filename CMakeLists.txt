@@ -56,9 +56,9 @@ set(SDK_PATH "${SISDK_DIR}")
 include(sdk/gen/${FW_BOARD}/cmake_gcc/efr32fg25_sdk.cmake)
 # The SDK sources are not ours: keep their warnings out of the way.
 target_compile_options(slc PRIVATE -w)
-# CPU flags and --specs=nano.specs already come from the toolchain file for
-# every target; drop the duplicates the generated target would propagate
-# (gcc refuses nano.specs twice).
+# The generated target propagates --specs=nano.specs; the firmware links the
+# full newlib instead (64-bit printf formats, see cmake/arm-none-eabi.cmake),
+# so drop it.
 foreach(prop COMPILE_OPTIONS INTERFACE_COMPILE_OPTIONS INTERFACE_LINK_OPTIONS)
     get_target_property(_opts slc ${prop})
     list(FILTER _opts EXCLUDE REGEX "nano\\.specs")
@@ -105,7 +105,7 @@ set(APP_COMMON_SOURCES
     apps/common/cli.c
     apps/common/net_test.c
     apps/common/certs.c
-    apps/common/freertos_hooks.c
+    apps/common/fault.c
 )
 
 # --start-group/--end-group feature for $<LINK_GROUP> (RESCAN is only
