@@ -215,6 +215,7 @@ static void stack_task(void *arg)
     mbed_trace_init();
     mbed_trace_print_function_set(ns_port_trace_write);
     mbed_trace_config_set(TRACE_ACTIVE_LEVEL_INFO);
+    fault_report_previous();
 
     /* Always-on FFN: the radio receives continuously, never go below EM1. */
     sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);

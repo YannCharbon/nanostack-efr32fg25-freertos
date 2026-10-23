@@ -51,5 +51,6 @@ int ping_start(const uint8_t addr[16], unsigned count, unsigned size);
 void ping_on_timer(void);
 void cli_init(void);
 void cli_poll(void);
+void fault_report_previous(void);   /* apps/common/fault.c */
 
 #endif

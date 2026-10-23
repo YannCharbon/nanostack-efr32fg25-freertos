@@ -143,3 +143,7 @@ void whiteboard_os_modify(const uint8_t address[static 16], int mode)
     (void)address;
     (void)mode;
 }
+
+void fault_report_previous(void)
+{
+}
