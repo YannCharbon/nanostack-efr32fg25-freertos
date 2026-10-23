@@ -186,6 +186,10 @@ void node_print_status(bool verbose)
                                (unsigned long)rs.tx_cca_busy_rx, (unsigned long)rs.tx_fail,
                                (unsigned long)rs.tx_sched_missed, (unsigned long)rs.tx_late_start,
                                (unsigned long)rs.tx_aborted_by_mac);
+        ns_port_console_printf("   radio: sched_refused=%lu tx_start_err=%lu (last status 0x%lx, state 0x%lx) tx_underflow/other=%lu\r\n",
+                               (unsigned long)rs.tx_sched_refused,
+                               (unsigned long)rs.tx_start_err, (unsigned long)rs.tx_start_err_last,
+                               (unsigned long)rs.tx_start_err_state, (unsigned long)rs.tx_underflow);
         ns_port_console_printf("   radio: ack_tx=%lu ack_lat_max=%luus prepare_late_max=%luus cca_thr=%ddBm txpwr=%d.%ddBm cal=%lu\r\n",
                                (unsigned long)rs.ack_tx, (unsigned long)rs.ack_latency_max_us,
                                (unsigned long)rs.prepare_lateness_max_us, rs.cca_threshold_dbm,

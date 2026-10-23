@@ -42,8 +42,13 @@ struct rail_phy_stats {
     uint32_t tx_ok;
     uint32_t tx_cca_busy;        /* CCA failed (RAIL CSMA or RESTART_CSMA RSSI check) */
     uint32_t tx_cca_busy_rx;     /* CCA skipped: frame being received */
-    uint32_t tx_fail;            /* aborted / underflow / start error */
+    uint32_t tx_fail;            /* aborted / underflow / start error (sum) */
+    uint32_t tx_start_err;       /* RAIL_Start*Tx() refused */
+    uint32_t tx_start_err_last;  /* last RAIL_Status_t of a refused start */
+    uint32_t tx_start_err_state; /* RAIL_GetRadioState() at that refusal */
+    uint32_t tx_underflow;
     uint32_t tx_sched_missed;
+    uint32_t tx_sched_refused;   /* scheduled start refused, sent immediately */
     uint32_t tx_late_start;      /* prepare ran after the requested TX time */
     uint32_t tx_aborted_by_mac;
     uint32_t ack_tx;

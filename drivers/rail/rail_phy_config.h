@@ -34,12 +34,15 @@
 /* The prepare step (CCA_PREPARE callback + FIFO load + RAIL scheduling)
  * starts this long before the MAC's requested TX time (estimate). */
 #ifndef RAIL_PHY_PREPARE_US
-#define RAIL_PHY_PREPARE_US 500
+#define RAIL_PHY_PREPARE_US 800
 #endif
 
-/* Below this lead time a RAIL scheduled TX is not used: transmit now. */
+/* Below this lead time a RAIL scheduled TX is not used: transmit now.
+ * On EFR32FG25 hardware RAIL refused scheduled CCA TX ~260 µs ahead
+ * (SL_STATUS_INVALID_PARAMETER); 400 µs leaves margin (the driver also falls
+ * back to an immediate start if RAIL refuses). */
 #ifndef RAIL_PHY_MIN_SCHED_AHEAD_US
-#define RAIL_PHY_MIN_SCHED_AHEAD_US 250
+#define RAIL_PHY_MIN_SCHED_AHEAD_US 400
 #endif
 
 /* CCA length: 8 symbols at 50 kbit/s = 160 µs. */

@@ -344,40 +344,44 @@ static void tx_start_rail(void)
     tx_state = TXS_ACTIVE;
     rx_channel = cur_channel;  /* RAIL returns to RX on the TX channel */
 
-    if (csma_cca_enabled) {
-        RAIL_CsmaConfig_t csma = {
-            .csmaMinBoExp = 0,
-            .csmaMaxBoExp = 0,
-            .csmaTries = 1,
-            .ccaThreshold = cca_threshold_dbm,
-            .ccaBackoff = 0,
-            .ccaDuration = RAIL_PHY_CCA_DURATION_US,
-            .csmaTimeout = 0,
+    RAIL_CsmaConfig_t csma = {
+        .csmaMinBoExp = 0,
+        .csmaMaxBoExp = 0,
+        .csmaTries = 1,
+        .ccaThreshold = cca_threshold_dbm,
+        .ccaBackoff = 0,
+        .ccaDuration = RAIL_PHY_CCA_DURATION_US,
+        .csmaTimeout = 0,
+    };
+    st = RAIL_STATUS_INVALID_STATE;
+    if (scheduled) {
+        RAIL_ScheduleTxConfig_t sched = {
+            .when = csma_backoff_time,
+            .mode = RAIL_TIME_ABSOLUTE,
+            .txDuringRx = RAIL_SCHEDULED_TX_DURING_RX_ABORT_TX,
         };
-        if (scheduled) {
-            RAIL_ScheduleTxConfig_t sched = {
-                .when = csma_backoff_time,
-                .mode = RAIL_TIME_ABSOLUTE,
-                .txDuringRx = RAIL_SCHEDULED_TX_DURING_RX_ABORT_TX,
-            };
-            st = RAIL_StartScheduledCcaCsmaTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &sched, &csma, NULL);
-        } else {
-            st = RAIL_StartCcaCsmaTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &csma, NULL);
-        }
-    } else {
-        if (scheduled) {
-            RAIL_ScheduleTxConfig_t sched = {
-                .when = csma_backoff_time,
-                .mode = RAIL_TIME_ABSOLUTE,
-                .txDuringRx = RAIL_SCHEDULED_TX_DURING_RX_ABORT_TX,
-            };
-            st = RAIL_StartScheduledTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &sched, NULL);
-        } else {
-            st = RAIL_StartTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, NULL);
+        st = csma_cca_enabled
+             ? RAIL_StartScheduledCcaCsmaTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &sched, &csma, NULL)
+             : RAIL_StartScheduledTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &sched, NULL);
+        if (st != RAIL_STATUS_NO_ERROR) {
+            /* On hardware RAIL refuses (SL_STATUS_INVALID_PARAMETER) a
+             * scheduled start that is too close (seen at ~260 µs ahead):
+             * transmit now instead of failing the frame. */
+            stats.tx_sched_refused++;
+            tx_start_time = RAIL_GetTime();
         }
     }
     if (st != RAIL_STATUS_NO_ERROR) {
+        st = csma_cca_enabled
+             ? RAIL_StartCcaCsmaTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, &csma, NULL)
+             : RAIL_StartTx(rh, ch, RAIL_TX_OPTIONS_DEFAULT, NULL);
+    }
+    if (st != RAIL_STATUS_NO_ERROR) {
         stats.tx_fail++;
+        stats.tx_start_err++;
+        stats.tx_start_err_last = st;
+        stats.tx_start_err_state = RAIL_GetRadioState(rh) | (csma_cca_enabled ? 0x100u : 0) | (scheduled ? 0x200u : 0)
+                                   | ((uint32_t)(ahead < 0 ? 0 : (ahead > 0xffff ? 0xffff : ahead)) << 16);
         tx_state = TXS_IDLE;
         rx_channel = -1;
         start_rx();
@@ -469,6 +473,7 @@ static void handle_tx_events(void)
         tx_done(PHY_LINK_CCA_FAIL);
     } else {
         stats.tx_fail++;
+        stats.tx_underflow++;
         rx_channel = -1;
         tx_done(PHY_LINK_TX_FAIL);
     }
