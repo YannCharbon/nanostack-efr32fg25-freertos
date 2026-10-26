@@ -9,9 +9,10 @@
  *  - ISR-safe functions: eventOS_scheduler_signal(), platform_enter/exit_critical(),
  *    ns_port_time_us(), ns_port_notify_from_isr().
  *
- * The functions the stack itself calls keep their Nanostack names and live in
- * the compatibility headers next to this one (common/hal_interrupt.h,
- * common/rand.h) and in nanostack-event-loop's eventOS_*.h.
+ * The porting API itself is declared by the stack (the include/ns_port/
+ * headers of nanostack-generic-standalone, included below). This header adds
+ * what is specific to this port: init, notification, heap, console and
+ * statistics.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,38 +23,26 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "ns_port/ns_port.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct fhss_timer;
 
 /* Once, from the stack task, after the radio timebase is up (RAIL_Init) and
  * before eventOS_scheduler_init(). Records the calling task as stack task. */
 void ns_port_init(void);
 
-/* Stack task main loop. Each iteration: run poll hooks (driver bottom half,
- * CLI), dispatch expired callback timers and FHSS timers, run the event loop
- * until idle, then block until notified. Never returns. */
-void ns_port_run(void) __attribute__((noreturn));
-
-/* Extra work done in each loop iteration, in stack context (max 4 hooks). */
-void ns_port_add_poll_hook(void (*hook)(void));
+/* ns_port_run(): each iteration runs the poll hooks (driver bottom half,
+ * CLI), dispatches expired callback timers and FHSS timers, runs the event
+ * loop until idle, then blocks until notified. At most 4 poll hooks. */
 
 /* Wake the stack task (from a task or an ISR). */
 void ns_port_notify(void);
 void ns_port_notify_from_isr(void);
 
-/* Monotonic µs time, wraps at 2^32 (~71 min). Same timebase as the radio
- * timestamps (RAIL_GetTime()). ISR-safe. */
-uint32_t ns_port_time_us(void);
-
-/* FHSS platform timer for ws_management_node_init() (fhss_timer_t). */
-extern const struct fhss_timer ns_port_fhss_timer;
-
-/* Strong random bytes from the SE TRNG (seeds the TLS DRBG, D13). Task
- * context; may block shortly on the SE mailbox. */
-void ns_port_random_bytes(void *buf, size_t n);
+/* ns_port_time_us() is RAIL_GetTime(). ns_port_random_bytes() comes from
+ * the SE TRNG; task context only, it may block shortly on the SE mailbox. */
 
 /* Heap (FreeRTOS heap_4; malloc/free/calloc/realloc are wrapped onto it). */
 struct ns_port_heap_stats {
@@ -67,11 +56,15 @@ struct ns_port_heap_stats {
 };
 void ns_port_heap_stats(struct ns_port_heap_stats *st);
 
+/* Poll hook: keeps the TRNG pool at least half full from the stack task's
+ * loop, so that callers inside critical sections (the FHSS broadcast-slot
+ * handler) rarely trigger a blocking Secure Engine refill. */
+void ns_port_random_poll(void);
+
 /* Trace output (mbed_trace print function): non-blocking ring buffer drained
  * to the VCOM by a low-priority task. Lines that do not fit are dropped and
  * counted. */
 void ns_port_trace_init(void);
-void ns_port_trace_write(const char *line);
 uint32_t ns_port_trace_dropped(void);
 /* Raw console output for the CLI (same ring, same task). */
 void ns_port_console_write(const char *s, size_t len);

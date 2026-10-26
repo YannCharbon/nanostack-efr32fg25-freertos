@@ -74,7 +74,7 @@ target_compile_definitions(mbedtls_fw PUBLIC MBEDTLS_CONFIG_FILE="mbedtls_config
 target_compile_options(mbedtls_fw PRIVATE -std=gnu17 -w)
 
 # ---------------------------------------------------------------- Nanostack
-set(NS_PORT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/port/freertos/include")
+set(NS_PORT_TARGET ns_port_freertos)
 include(cmake/nanostack.cmake)
 
 # --------------------------------------------- port (FreeRTOS/EFR32) + radio
@@ -84,16 +84,16 @@ add_library(ns_port_freertos STATIC
     port/freertos/random.c
     port/freertos/heap_wrap.c
     port/freertos/trace_uart.c
-    port/freertos/no_stdio_fs.c
 )
-target_include_directories(ns_port_freertos PUBLIC ${NS_PORT_INCLUDE_DIR})
-target_link_libraries(ns_port_freertos PRIVATE slc nanostack_eventloop_fw)
+target_include_directories(ns_port_freertos PUBLIC port/freertos/include)
+target_link_libraries(ns_port_freertos PUBLIC nanostack_port_api)
+target_link_libraries(ns_port_freertos PRIVATE slc nanostack_eventloop)
 target_include_directories(ns_port_freertos PRIVATE ${NANOSTACK_DIR}/nanostack)
 
 add_library(rail_phy STATIC drivers/rail/rail_phy.c)
 target_include_directories(rail_phy PUBLIC drivers/rail)
 target_include_directories(rail_phy PRIVATE ${NANOSTACK_DIR}/nanostack)
-target_link_libraries(rail_phy PRIVATE slc ns_port_freertos nanostack_libservice_fw)
+target_link_libraries(rail_phy PRIVATE slc ns_port_freertos nanostack_libservice)
 
 foreach(t ns_port_freertos rail_phy)
     target_compile_options(${t} PRIVATE -std=gnu17 -Wall -Wextra -Wno-unused-parameter)
@@ -125,12 +125,11 @@ function(add_wisun_image name role nslib)
     # group.
     target_link_libraries(${name} PRIVATE
         slc
-        "$<LINK_GROUP:nsgroup,${nslib},nanostack_rcp_fw,nanostack_eventloop_fw,nanostack_libservice_fw,ns_port_freertos,rail_phy,mbedtls_fw>"
+        "$<LINK_GROUP:nsgroup,${nslib},nanostack_rcp_fw,nanostack_eventloop,nanostack_libservice,ns_port_freertos,rail_phy,mbedtls_fw>"
     )
     target_link_options(${name} PRIVATE
         -Wl,--wrap=malloc,--wrap=free,--wrap=calloc,--wrap=realloc
         -Wl,--wrap=_malloc_r,--wrap=_free_r,--wrap=_calloc_r,--wrap=_realloc_r
-        -Wl,--wrap=fopen,--wrap=fclose,--wrap=fread,--wrap=fwrite,--wrap=fseek,--wrap=ftell,--wrap=remove,--wrap=rewind
         -Wl,-Map=$<TARGET_FILE_DIR:${name}>/${name}.map
         -Wl,--print-memory-usage
     )

@@ -19,7 +19,7 @@
 #include "nanostack-event-loop/eventOS_callback_timer.h"
 #include "nanostack/mac/fhss_api.h"
 #include "nanostack/mac/fhss_config.h"
-#include "common/hal_interrupt.h"
+#include "ns_port/critical.h"
 #include "ns_port.h"
 
 #define NS_PORT_CALLBACK_TIMERS 16   /* plan: N >= 12, the stack registers ~6 */

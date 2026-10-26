@@ -35,7 +35,12 @@ target_include_directories(mbedtls_fw PRIVATE "${MBEDTLS_DIR}/library")
 target_compile_definitions(mbedtls_fw PUBLIC MBEDTLS_CONFIG_FILE="mbedtls_config_target.h")
 target_compile_options(mbedtls_fw PRIVATE -std=gnu17 -w)
 
-set(NS_PORT_INCLUDE_DIR "${FW_DIR}/port/freertos/include")
+# The port's sources are compiled into each twin executable (below); this
+# target only carries the porting API headers to the stack libraries.
+add_library(ns_port_twin INTERFACE)
+target_link_libraries(ns_port_twin INTERFACE nanostack_port_api)
+target_include_directories(ns_port_twin INTERFACE ${FW_DIR}/port/freertos/include)
+set(NS_PORT_TARGET ns_port_twin)
 set(NS_TRACE_MAX_LEVEL "TRACE_LEVEL_DEBUG" CACHE STRING "")
 include(${FW_DIR}/cmake/nanostack.cmake)
 
@@ -48,7 +53,7 @@ target_include_directories(host_sdk INTERFACE
     ${SISDK_DIR}/platform/common/inc
     ${FW_DIR}/sdk/gen/brd4270b/autogen
     ${FW_DIR}/drivers/rail
-    ${NS_PORT_INCLUDE_DIR}
+    ${FW_DIR}/port/freertos/include
     ${NANOSTACK_DIR}/nanostack
 )
 
@@ -64,7 +69,6 @@ function(add_twin name role nslib)
         ${FW_DIR}/port/freertos/random.c
         ${FW_DIR}/port/freertos/heap_wrap.c
         ${FW_DIR}/port/freertos/trace_uart.c
-        ${FW_DIR}/port/freertos/no_stdio_fs.c
         ${FW_DIR}/drivers/rail/rail_phy.c
         fake_rtos.c
         fake_rail.c
@@ -74,12 +78,11 @@ function(add_twin name role nslib)
     target_compile_definitions(${name} PRIVATE ${APP_EXTRA_DEFS})
     target_compile_options(${name} PRIVATE -std=gnu17 -Wall -Wno-unused-parameter -Wno-missing-field-initializers)
     target_link_libraries(${name} PRIVATE host_sdk
-        -Wl,--start-group ${nslib} nanostack_rcp_fw nanostack_eventloop_fw nanostack_libservice_fw mbedtls_fw -Wl,--end-group
+        -Wl,--start-group ${nslib} nanostack_rcp_fw nanostack_eventloop nanostack_libservice mbedtls_fw -Wl,--end-group
         pthread)
     # Same wraps as the firmware link, plus main (like sl_main does).
     target_link_options(${name} PRIVATE
         -Wl,--wrap=malloc,--wrap=free,--wrap=calloc,--wrap=realloc
-        -Wl,--wrap=fopen,--wrap=fclose,--wrap=fread,--wrap=fwrite,--wrap=fseek,--wrap=ftell,--wrap=remove,--wrap=rewind
         -Wl,--wrap=main)
 endfunction()
 

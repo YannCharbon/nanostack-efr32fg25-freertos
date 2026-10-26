@@ -1,4 +1,11 @@
-# Proposed patches for nanostack-generic-standalone
+# Patches proposed for nanostack-generic-standalone
+
+**Status: both patches are applied in the stack** (GENERICITY_PLAN.md step S3),
+and the firmware uses them: patch 0001 as the `NANOSTACK_FILE_NO_STDIO`
+option, patch 0002 as `NANOSTACK_PORT` and
+`nanostack_add_rcp_library(... INPROCESS)` (instead of the
+`NANOSTACK_RCP_INPROCESS` option proposed below). The workarounds described
+below are gone. The patch files are kept as a record.
 
 None of these is required: the firmware builds and the host twin runs against
 the **unmodified** stack. Each item is worked around inside this repository.

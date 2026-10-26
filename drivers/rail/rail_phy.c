@@ -53,7 +53,7 @@
 #include "nanostack/mac/platform/arm_hal_phy.h"
 #include "mbed-client-libservice/common_functions.h"
 #include "mbed-client-libservice/ns_trace.h"
-#include "common/hal_interrupt.h"
+#include "ns_port/critical.h"
 #include "ns_port.h"
 #include "rail_phy.h"
 #include "rail_phy_config.h"
@@ -94,6 +94,11 @@ static int8_t cca_threshold_dbm = RAIL_PHY_CCA_THRESHOLD_DBM;
 static bool whitening = RAIL_PHY_WHITENING;
 static RAIL_MultiTimer_t prepare_timer;
 static volatile bool prepare_due;
+/* TX watchdog: RAIL can accept a scheduled CCA+TX and then never report it
+ * (seen when the stack masks the RAIL IRQs across the scheduled start). The
+ * prepare timer, idle while TXS_ACTIVE, is re-armed as a deadline. */
+static volatile bool tx_watchdog_due;
+#define RAIL_PHY_TX_WATCHDOG_MARGIN_US 20000u
 static volatile RAIL_Events_t pending_tx_events;
 static volatile bool cal_needed;
 
@@ -209,6 +214,15 @@ static void prepare_timer_isr(RAIL_MultiTimer_t *tmr, RAIL_Time_t expected, void
     ns_port_notify_from_isr();
 }
 
+static void tx_watchdog_isr(RAIL_MultiTimer_t *tmr, RAIL_Time_t expected, void *arg)
+{
+    (void)tmr;
+    (void)expected;
+    (void)arg;
+    tx_watchdog_due = true;
+    ns_port_notify_from_isr();
+}
+
 static void rx_capture_isr(void)
 {
     RAIL_RxPacketInfo_t info;
@@ -305,6 +319,7 @@ static void arm_prepare(void)
 
 static void tx_abort(void)
 {
+    tx_watchdog_due = false;
     RAIL_CancelMultiTimer(&prepare_timer);
     prepare_due = false;
     if (tx_state == TXS_ACTIVE) {
@@ -388,6 +403,15 @@ static void tx_start_rail(void)
         tx_done(PHY_LINK_CCA_FAIL);
         return;
     }
+    {
+        /* Deadline: start time + air time (SHR 8 B + PHR + PSDU + FCS) + margin. */
+        int32_t wait = (int32_t)(tx_start_time - RAIL_GetTime());
+        uint32_t air = (uint32_t)(((uint64_t)(8u + PHR_LEN + tx_len + RAIL_PHY_FCS_LEN) * 8u * 1000000u) / symbol_rate);
+
+        tx_watchdog_due = false;
+        RAIL_SetMultiTimer(&prepare_timer, (uint32_t)(wait > 0 ? wait : 0) + air + RAIL_PHY_TX_WATCHDOG_MARGIN_US,
+                           RAIL_TIME_DELAY, tx_watchdog_isr, NULL);
+    }
     if (tx_is_ack) {
         uint32_t lat = tx_start_time - last_rx_end;
         stats.ack_tx++;
@@ -455,6 +479,8 @@ static void handle_tx_events(void)
     if (!ev || tx_state != TXS_ACTIVE) {
         return;
     }
+    RAIL_CancelMultiTimer(&prepare_timer);
+    tx_watchdog_due = false;
     tx_state = TXS_IDLE;
     if (ev & RAIL_EVENT_TX_PACKET_SENT) {
         stats.tx_ok++;
@@ -507,6 +533,22 @@ static void rail_phy_process(void)
     }
     deliver_rx();
     handle_tx_events();
+    if (tx_watchdog_due) {
+        tx_watchdog_due = false;
+        if (tx_state == TXS_ACTIVE) {
+            /* No TX event by the deadline: the TX was lost inside RAIL. */
+            RAIL_Idle(rh, RAIL_IDLE_ABORT, true);
+            platform_enter_critical();
+            pending_tx_events = 0;
+            platform_exit_critical();
+            stats.tx_lost++;
+            stats.tx_fail++;
+            tx_state = TXS_IDLE;
+            rx_channel = -1;
+            tx_done(PHY_LINK_CCA_FAIL);   /* MAC retries */
+            start_rx();
+        }
+    }
     if (prepare_due && tx_state == TXS_WAIT_PREPARE) {
         prepare_due = false;
         do_prepare();

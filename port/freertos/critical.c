@@ -14,7 +14,7 @@
  */
 #include "FreeRTOS.h"
 #include "task.h"
-#include "common/hal_interrupt.h"
+#include "ns_port/critical.h"
 
 #define ISR_NEST_MAX 8
 

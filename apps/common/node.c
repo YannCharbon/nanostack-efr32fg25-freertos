@@ -31,7 +31,7 @@
 #include "nanostack/net_interface.h"
 #include "nanostack/ws_management_api.h"
 #include "6lowpan/ws/ws_common_defines.h"   /* WS_FHSS_*_INTERVAL defaults */
-#include "common/hal_interrupt.h"
+#include "ns_port/critical.h"
 
 #include "ns_port.h"
 #include "rail_phy.h"
@@ -186,10 +186,11 @@ void node_print_status(bool verbose)
                                (unsigned long)rs.tx_cca_busy_rx, (unsigned long)rs.tx_fail,
                                (unsigned long)rs.tx_sched_missed, (unsigned long)rs.tx_late_start,
                                (unsigned long)rs.tx_aborted_by_mac);
-        ns_port_console_printf("   radio: sched_refused=%lu tx_start_err=%lu (last status 0x%lx, state 0x%lx) tx_underflow/other=%lu\r\n",
+        ns_port_console_printf("   radio: sched_refused=%lu tx_start_err=%lu (last status 0x%lx, state 0x%lx) tx_underflow/other=%lu tx_lost=%lu\r\n",
                                (unsigned long)rs.tx_sched_refused,
                                (unsigned long)rs.tx_start_err, (unsigned long)rs.tx_start_err_last,
-                               (unsigned long)rs.tx_start_err_state, (unsigned long)rs.tx_underflow);
+                               (unsigned long)rs.tx_start_err_state, (unsigned long)rs.tx_underflow,
+                               (unsigned long)rs.tx_lost);
         ns_port_console_printf("   radio: ack_tx=%lu ack_lat_max=%luus prepare_late_max=%luus cca_thr=%ddBm txpwr=%d.%ddBm cal=%lu\r\n",
                                (unsigned long)rs.ack_tx, (unsigned long)rs.ack_latency_max_us,
                                (unsigned long)rs.prepare_lateness_max_us, rs.cca_threshold_dbm,
@@ -258,6 +259,7 @@ static void stack_task(void *arg)
     eventOS_event_handler_create(app_tasklet, ARM_LIB_TASKLET_INIT_EVENT);
     cli_init();
     ns_port_add_poll_hook(cli_poll);
+    ns_port_add_poll_hook(ns_port_random_poll);
     ns_port_run();
 }
 

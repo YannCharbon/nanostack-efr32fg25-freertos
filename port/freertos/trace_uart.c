@@ -20,7 +20,7 @@
 #include "sl_iostream_uart.h"
 #include "sl_iostream_init_eusart_instances.h"
 
-#include "common/hal_interrupt.h"
+#include "ns_port/critical.h"
 #include "ns_port.h"
 
 #ifndef NS_PORT_TRACE_RING_SIZE
