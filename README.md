@@ -534,7 +534,9 @@ On the target the compensation is applied. It is compiled out on Linux
      In addition, a poll hook keeps the TRNG pool at least half full outside
      critical sections. The stack's `rand_*` helpers draw twice the bytes of
      this repo's old copies, which doubled the blocking Secure Engine refills
-     inside that handler. The trigger itself is a stack issue (STATUS.md GS6).
+     inside that handler. The stack has since shortened those critical sections
+     (GS6, 2026-10-26: about 600 µs down to 170–250 µs, no random draw
+     inside); the watchdog stays as protection against any lost RAIL event.
 
 ## Known gaps / TODO
 

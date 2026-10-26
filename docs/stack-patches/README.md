@@ -64,6 +64,14 @@ Changes in patch 0002:
    `os_whiteboard.h` is a no-op off Linux.
 3. **Channel mask.** `ws_management_channel_mask_set()` with channels 0..15
    (NA/1b) produced `channels: BC 129 UC 16`. In the host twin the RN then
-   never got an ACK for its unicast EAPOL frames. Not investigated further: the
-   mask may also need to reach the broadcast schedule, or the unicast DH1CF
-   with excluded channels may disagree between nodes.
+   never got an ACK for its unicast EAPOL frames.
+   *Fixed in the stack (GENERICITY_PLAN.md step GS6, 2026-10-26).* The router
+   converts its candidate parent's excluded-channel range into a bitmask
+   (`ws_bootstrap.c`) as native 32-bit words, but the mask is read back as
+   big-endian bytes. On little-endian CPUs the wrong channels were excluded,
+   so unicast frames went to channels the BR does not listen on. In the
+   emulator, 0 of 14 routers joined with a mask before the fix and 41 of 42
+   after; on the two boards, channels 0..15 of 69 then joined and passed
+   8/8 in 2 of 2 boots. That broadcast keeps all channels is upstream
+   behaviour (the `allowed_channels` FIXME in the emulator's example
+   configs).
