@@ -67,6 +67,12 @@ uint32_t ns_port_time_us(void)
     return RAIL_GetTime();
 }
 
+/* No real-time clock on the board. */
+uint64_t ns_port_time_wall_s(void)
+{
+    return 0;
+}
+
 void ns_port_add_poll_hook(void (*hook)(void))
 {
     configASSERT(poll_hook_count < NS_PORT_POLL_HOOKS);

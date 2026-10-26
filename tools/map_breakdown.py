@@ -36,7 +36,7 @@ def component(path):
         return "stack: other (core, net_lib, service_libs, nwk_interface)"
     if "libnanostack_rcp_fw.a" in p:
         return "MAC + FHSS + CCM (rcp/)"
-    if "libnanostack_eventloop_fw.a" in p or "libnanostack_libservice_fw.a" in p:
+    if "libnanostack_eventloop.a" in p or "libnanostack_libservice.a" in p:
         return "event loop + libservice (incl. ns_trace)"
     if "libmbedtls_fw.a" in p:
         return "mbedTLS 3.0.0"
@@ -55,7 +55,7 @@ def component(path):
     if "wisun_" in p and ".dir/apps/" in p:
         return "apps (node, CLI, tests, certificates)"
     if "libc" in p or "libgcc" in p or "libm" in p or "libnosys" in p:
-        return "libc-nano / libgcc"
+        return "newlib (full libc) / libgcc"
     return "other"
 
 
