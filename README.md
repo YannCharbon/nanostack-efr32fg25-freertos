@@ -20,7 +20,10 @@ The two images:
 
 The specification is section 5 of
 `nanostack-generic-standalone/docs/GENERICITY_PLAN.md`. Deviations from it are
-listed in [Design notes](#design-notes).
+listed in [Design notes](#design-notes). This firmware is the reference port
+of the stack's porting guide, `nanostack-generic-standalone/docs/PORTING.md`:
+`port/freertos/` implements the porting API and `drivers/rail/` the radio
+driver.
 
 **Status (2026-10-23).**
 
