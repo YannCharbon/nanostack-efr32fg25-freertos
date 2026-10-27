@@ -114,7 +114,9 @@ single-band.
 Other paths: `cmake --preset fw -DNANOSTACK_DIR=... -DSISDK_DIR=... -DMBEDTLS_DIR=...`.
 Configuration knobs (`apps/common/app_config.h`, `drivers/rail/rail_phy_config.h`)
 take `-DAPP_EXTRA_DEFS="NAME=value;..."` (apps). Driver values are edited in
-the header or passed with `-DCMAKE_C_FLAGS=-D...`.
+the header or passed with `-DCMAKE_C_FLAGS_MINSIZEREL="-Os -g -DNAME=value"`.
+Do not use `-DCMAKE_C_FLAGS=-D...`: it replaces the toolchain's CPU flags and
+the link fails.
 
 A clean build of both images takes about 4 s on 16 cores. Each link prints a
 size report and **fails if** flash > 1 MB or static RAM without the heap > 64 kB
@@ -446,6 +448,16 @@ On the target the compensation is applied. It is compiled out on Linux
 3. **Crashes were invisible**: the BR just went silent. Commit `b42666d`
    added the `.noinit` crash record described in the
    [test procedure](#on-hardware-test-procedure-two-kits-brd4271a-on-brd4001a-or-brd4270b-on-brd4002a).
+4. **Join stalled in about 1 boot in 15** (workspace HW9, 2026-10-27; design
+   note 11).
+   - Symptom: the RN never received a long frame, for example the BR's
+     614-byte EAP-TLS frame, through all MAC retries.
+   - Cause: the driver restarted RX on the new channel when FHSS changed
+     channel in the middle of a reception, which aborts the frame.
+   - Fix: `RAIL_PHY_HOP_DEFER`.
+   - Evidence: [tests/hw_logs/2026-10-27_hw9_hop_during_rx](tests/hw_logs/2026-10-27_hw9_hop_during_rx/README.md).
+     Without the fix: 2 stalls in 30 boots, and hundreds of frames cut. With
+     it: 0 in 30, and no frame cut.
 
 ## Design notes
 
@@ -537,6 +549,28 @@ On the target the compensation is applied. It is compiled out on Linux
      inside that handler. The stack has since shortened those critical sections
      (GS6, 2026-10-26: about 600 µs down to 170–250 µs, no random draw
      inside); the watchdog stays as protection against any lost RAIL event.
+  11. **No channel change during a reception** (`RAIL_PHY_HOP_DEFER`, default 1;
+     HW9, 2026-10-27).
+     - Why: `RAIL_StartRx()` on another channel aborts the frame being
+       received. The sender picks the receiver's channel once, when the
+       transmission starts (`rcp/fhss/fhss_ws.c:727`), so the receiver must
+       stay on that channel until the frame ends.
+     - Before the fix, the driver switched at once. A boot whose hop timing
+       sat unluckily against the BR's TX slots lost every retry of a long
+       frame.
+     - Now: if RAIL is receiving a frame (`RAIL_RF_STATE_RX_ACTIVE`) when
+       `PHY_EXTENSION_SET_CHANNEL` arrives, the driver records the channel,
+       returns 0 and keeps receiving. The bottom half switches when the frame
+       ends, or after 400 ms if the reception hangs.
+     - The Enh-ACK goes out on the channel of the frame it answers, because
+       the sender waits there.
+     - It returns 0 rather than -1 on purpose. On -1, `mac_mlme_rf_channel_change()`
+       (`rcp/mac/ieee802154/mac_mlme.c:1020-1042`) keeps the old `mac_channel`
+       and nobody retries. A later request for that old channel is then
+       skipped, and the radio stays on the wrong channel.
+     - Counters (`status -v`): `rx_hop_abort` (with the option off),
+       `rx_hop_deferred`, `rx_hop_defer_max_us`, `ack_on_rx_channel`. On the
+       bench the longest deferral was 59 ms.
 
 ## Known gaps / TODO
 

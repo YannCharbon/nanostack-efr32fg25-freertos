@@ -67,6 +67,14 @@
 #define RAIL_PHY_TX_POWER_FIXED_DDBM 100   /* +10 dBm on the bench */
 #endif
 
+/* Defer a channel change (FHSS hop) requested while a frame is being
+ * received to the end of that frame, and send the Enh-ACK on the channel the
+ * frame came in on. 0: switch at once (aborts the frame; the behaviour before
+ * HW9). */
+#ifndef RAIL_PHY_HOP_DEFER
+#define RAIL_PHY_HOP_DEFER 1
+#endif
+
 /* RX ring slots (each ~2 kB) and RAIL FIFOs. */
 #ifndef RAIL_PHY_RX_SLOTS
 #define RAIL_PHY_RX_SLOTS 4

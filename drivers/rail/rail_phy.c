@@ -100,6 +100,20 @@ static volatile bool prepare_due;
 static volatile bool tx_watchdog_due;
 #define RAIL_PHY_TX_WATCHDOG_MARGIN_US 20000u
 static volatile RAIL_Events_t pending_tx_events;
+/* Channel change requested while a frame is being received (FHSS unicast hop
+ * or broadcast slot edge in the middle of a long frame). RAIL_StartRx() on
+ * another channel aborts the reception, so with RAIL_PHY_HOP_DEFER the
+ * switch waits for the end of the frame (the emulator's reference driver
+ * refuses the change in DRVSTATE_RX for the same reason). */
+static volatile bool hop_pending;
+static uint32_t hop_pending_since;
+static struct {
+    bool due;
+    uint8_t from, to;
+    uint16_t bytes;
+    uint32_t time;
+} hop_ev;
+#define RAIL_PHY_HOP_DEFER_MAX_US 400000u   /* > air time of a 2049-byte frame */
 static volatile bool cal_needed;
 
 /* RX ring: filled by the RAIL ISR, drained by rail_phy_process() */
@@ -109,12 +123,14 @@ struct rx_slot {
     uint8_t lqi;
     uint32_t time;         /* sync-word end, RAIL µs */
     uint32_t end;          /* estimated end of frame (FCS end), RAIL µs */
+    uint16_t rail_ch;      /* RAIL channel the frame was received on */
     uint8_t buf[RX_BUF_LEN];
 };
 static struct rx_slot rx_ring[RAIL_PHY_RX_SLOTS];
 static volatile uint32_t rx_head, rx_tail;
 static uint32_t last_rx_time;        /* sync-word end of the last delivered frame */
 static uint32_t last_rx_end;         /* estimated end of that frame */
+static uint16_t last_rx_rail_ch = 0xffff; /* its RAIL channel (Enh-ACK goes there) */
 
 /* RAIL FIFOs */
 static uint8_t tx_fifo[RAIL_PHY_TX_FIFO_SIZE] __attribute__((aligned(4)));
@@ -173,6 +189,11 @@ static inline uint16_t rail_channel(uint8_t ws_channel)
     return rail_ch_offset + ws_channel;
 }
 
+static inline bool rx_frame_in_progress(void)
+{
+    return (RAIL_GetRadioState(rh) & RAIL_RF_STATE_RX_ACTIVE) == RAIL_RF_STATE_RX_ACTIVE;
+}
+
 static void start_rx(void)
 {
     if (!radio_on || tx_state == TXS_ACTIVE) {
@@ -187,8 +208,30 @@ static void start_rx(void)
         return;
     }
     if (rx_channel == cur_channel && (RAIL_GetRadioState(rh) & RAIL_RF_STATE_RX)) {
+        hop_pending = false;
         return;
     }
+    if (rx_channel >= 0 && rx_frame_in_progress()) {
+        if (!hop_pending && !hop_ev.due) {
+            RAIL_RxPacketInfo_t info;
+            hop_ev.from = (uint8_t)rx_channel;
+            hop_ev.to = cur_channel;
+            hop_ev.bytes = RAIL_GetRxIncomingPacketInfo(rh, &info) == RAIL_STATUS_NO_ERROR ? info.packetBytes : 0xffff;
+            hop_ev.time = RAIL_GetTime();
+            hop_ev.due = true;
+        }
+#if RAIL_PHY_HOP_DEFER
+        if (!hop_pending) {
+            hop_pending = true;
+            hop_pending_since = RAIL_GetTime();
+            stats.rx_hop_deferred++;
+        }
+        return;     /* rail_phy_process() switches at the end of the frame */
+#else
+        stats.rx_hop_abort++;
+#endif
+    }
+    hop_pending = false;
     if (RAIL_StartRx(rh, rail_channel(cur_channel), NULL) == RAIL_STATUS_NO_ERROR) {
         rx_channel = cur_channel;
     } else {
@@ -257,6 +300,9 @@ static void rx_capture_isr(void)
     slot->lqi = details.lqi;
     slot->time = details.timeReceived.packetTime;
     slot->end = slot->time + (uint32_t)(((uint64_t)(info.packetBytes + fcs_len) * 8u * 1000000u) / symbol_rate);
+    if (RAIL_GetChannel(rh, &slot->rail_ch) != RAIL_STATUS_NO_ERROR) {
+        slot->rail_ch = 0xffff;
+    }
     __DMB();
     rx_head++;
 }
@@ -278,6 +324,9 @@ static void rail_events_cb(RAIL_Handle_t handle, RAIL_Events_t events)
     }
     if (events & RAIL_EVENT_RX_PACKET_ABORTED) {
         stats.rx_aborted++;
+    }
+    if (hop_pending && (events & RX_EVENTS)) {
+        wake = true;      /* end of the frame: apply the deferred channel change */
     }
     if (events & TX_EVENTS) {
         pending_tx_events |= events & TX_EVENTS;
@@ -348,6 +397,16 @@ static void tx_start_rail(void)
     uint16_t ch = rail_channel(cur_channel);
     bool scheduled = ahead > RAIL_PHY_MIN_SCHED_AHEAD_US;
 
+#if RAIL_PHY_HOP_DEFER
+    /* An Enh-ACK answers the last received frame on that frame's channel: the
+     * sender waits there. FHSS may have hopped since (deferred change). */
+    if (tx_is_ack && last_rx_rail_ch != 0xffff && last_rx_rail_ch != ch) {
+        ch = last_rx_rail_ch;
+        stats.ack_on_rx_channel++;
+    }
+#endif
+    hop_pending = false;
+
     phr_build(phr, tx_len);
     RAIL_WriteTxFifo(rh, phr, PHR_LEN, true);
     RAIL_WriteTxFifo(rh, tx_buf, tx_len, false);
@@ -357,7 +416,7 @@ static void tx_start_rail(void)
     }
     tx_start_time = scheduled ? csma_backoff_time : now;
     tx_state = TXS_ACTIVE;
-    rx_channel = cur_channel;  /* RAIL returns to RX on the TX channel */
+    rx_channel = ch - rail_ch_offset;  /* RAIL returns to RX on the TX channel */
 
     RAIL_CsmaConfig_t csma = {
         .csmaMinBoExp = 0,
@@ -515,6 +574,7 @@ static void deliver_rx(void)
         __DMB();
         last_rx_time = slot->time;
         last_rx_end = slot->end;
+        last_rx_rail_ch = slot->rail_ch;
         stats.rx_ok++;
         if (drv.phy_rx_cb) {
             drv.phy_rx_cb(slot->buf + PHR_LEN, slot->len, slot->lqi, slot->rssi, drv_id);
@@ -533,6 +593,25 @@ static void rail_phy_process(void)
     }
     deliver_rx();
     handle_tx_events();
+    if (hop_ev.due) {
+        hop_ev.due = false;
+        tr_debug("hop %u->%u during RX (%u B in) at %lu: %s", hop_ev.from, hop_ev.to, hop_ev.bytes,
+                (unsigned long)hop_ev.time, RAIL_PHY_HOP_DEFER ? "deferred" : "frame aborted");
+    }
+    if (hop_pending) {
+        uint32_t waited = RAIL_GetTime() - hop_pending_since;
+        bool timeout = waited > RAIL_PHY_HOP_DEFER_MAX_US;
+        if (timeout || !rx_frame_in_progress()) {
+            if (waited > stats.rx_hop_defer_max_us) {
+                stats.rx_hop_defer_max_us = waited;
+            }
+            hop_pending = false;
+            if (timeout) {
+                rx_channel = -1;   /* stuck RX: restart on cur_channel regardless */
+            }
+            start_rx();
+        }
+    }
     if (tx_watchdog_due) {
         tx_watchdog_due = false;
         if (tx_state == TXS_ACTIVE) {

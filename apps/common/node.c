@@ -191,6 +191,10 @@ void node_print_status(bool verbose)
                                (unsigned long)rs.tx_start_err, (unsigned long)rs.tx_start_err_last,
                                (unsigned long)rs.tx_start_err_state, (unsigned long)rs.tx_underflow,
                                (unsigned long)rs.tx_lost);
+        ns_port_console_printf("   radio: rx_aborted=%lu rx_hop_abort=%lu rx_hop_deferred=%lu rx_hop_defer_max=%luus ack_on_rx_ch=%lu\r\n",
+                               (unsigned long)rs.rx_aborted, (unsigned long)rs.rx_hop_abort,
+                               (unsigned long)rs.rx_hop_deferred, (unsigned long)rs.rx_hop_defer_max_us,
+                               (unsigned long)rs.ack_on_rx_channel);
         ns_port_console_printf("   radio: ack_tx=%lu ack_lat_max=%luus prepare_late_max=%luus cca_thr=%ddBm txpwr=%d.%ddBm cal=%lu\r\n",
                                (unsigned long)rs.ack_tx, (unsigned long)rs.ack_latency_max_us,
                                (unsigned long)rs.prepare_lateness_max_us, rs.cca_threshold_dbm,

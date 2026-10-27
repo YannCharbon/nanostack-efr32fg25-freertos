@@ -52,6 +52,10 @@ struct rail_phy_stats {
     uint32_t tx_late_start;      /* prepare ran after the requested TX time */
     uint32_t tx_aborted_by_mac;
     uint32_t tx_lost;            /* TX watchdog: RAIL never reported a started TX */
+    uint32_t rx_hop_abort;       /* channel change while a frame was being received (frame lost) */
+    uint32_t rx_hop_deferred;    /* same, but the change was deferred to the end of the frame */
+    uint32_t rx_hop_defer_max_us;
+    uint32_t ack_on_rx_channel;  /* Enh-ACK sent on the frame's RX channel, not the current one */
     uint32_t ack_tx;
     uint32_t ack_latency_max_us; /* end of received frame -> Enh-ACK TX start */
     uint32_t prepare_lateness_max_us;
