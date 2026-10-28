@@ -28,6 +28,14 @@
 #define NS_PORT_POLL_HOOKS      4
 #define SLOT_US                 50   /* Nanostack callback timer slot */
 
+/* Run loop: longest wait without a notification, in ms; 0 = no limit.
+ * It only catches a missed notification. With the tickless event loop
+ * (NS_EVENTLOOP_TICKLESS) it is also a wake of its own (10/s at 100 ms): set
+ * FW_RUNLOOP_SAFETY_MS=0 once the tickless loop is validated on the boards. */
+#ifndef FW_RUNLOOP_SAFETY_MS
+#define FW_RUNLOOP_SAFETY_MS    100
+#endif
+
 static TaskHandle_t stack_task;
 
 static void (*poll_hooks[NS_PORT_POLL_HOOKS])(void);
@@ -395,11 +403,11 @@ void ns_port_run(void)
         if (any_cb_expired || any_fhss_expired) {
             continue;
         }
-        /* The 10 ms event-loop tick timer bounds this wait; the poll hooks
-         * (radio bottom half, CLI) are woken by their ISRs. The timeout is
-         * only a safety net for a missed notification. */
+        /* Timer expiries and the poll hooks' ISRs (radio bottom half, CLI)
+         * notify this task. The timeout is only a safety net for a missed
+         * notification (FW_RUNLOOP_SAFETY_MS, above). */
         ns_pstats_wake_end();
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100));
+        ulTaskNotifyTake(pdTRUE, FW_RUNLOOP_SAFETY_MS ? pdMS_TO_TICKS(FW_RUNLOOP_SAFETY_MS) : portMAX_DELAY);
         ns_pstats_wake_begin();
     }
 }

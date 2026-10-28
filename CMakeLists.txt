@@ -15,6 +15,8 @@ set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
     "Mbed TLS v3.0.0 source tree")
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
 option(FW_POWER_STATS "Power/activity statistics for AEM measurements (HW5): EM times, cycles per wake, radio states, GPIO PC1" OFF)
+set(FW_RUNLOOP_SAFETY_MS "" CACHE STRING
+    "Longest run-loop wait without a notification, ms (0: none). Empty: 100, until the tickless event loop is validated on the boards")
 set(FW_BOARD "brd4271a" CACHE STRING "Radio board: brd4271a (863-870 MHz, Wi-SUN EU) or brd4270b (902-928 MHz, Wi-SUN NA)")
 set_property(CACHE FW_BOARD PROPERTY STRINGS brd4271a brd4270b)
 if(FW_BOARD STREQUAL "brd4271a")
@@ -86,6 +88,9 @@ add_library(ns_port_freertos STATIC
     port/freertos/heap_wrap.c
     port/freertos/trace_uart.c
 )
+if(NOT FW_RUNLOOP_SAFETY_MS STREQUAL "")
+    add_compile_definitions(FW_RUNLOOP_SAFETY_MS=${FW_RUNLOOP_SAFETY_MS})
+endif()
 if(FW_POWER_STATS)
     target_sources(ns_port_freertos PRIVATE port/freertos/power_stats.c)
     target_link_libraries(ns_port_freertos PRIVATE mbedtls_fw)
