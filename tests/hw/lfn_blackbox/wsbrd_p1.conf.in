@@ -1,0 +1,26 @@
+# wsbrd v2.10.3 + wisun_rcp (SiSDK 2026.6.2, UART variant, not CPC) on kit B for the LFN
+# black-box test, phase 1. Filled in by wsbrd.py: @DEPS@ = the root repo's .deps, @RUN@ = run
+# directory, @PCAP@ = pcap file. Uses its own TUN (tunlfn), never the emulator's tun0/tunvt*.
+uart_device = /dev/serial/by-id/usb-Silicon_Labs_J-Link_Pro_OB_000440240046-if00
+uart_baudrate = 115200
+uart_rtscts = false
+tun_device = tunlfn
+# Not fd12:3456::/64: the emulator's tun0/tunvt* hold that prefix on this PC.
+ipv6_prefix = fd00:5eed::/64
+network_name = hw5lfn
+domain = EU
+chan_plan_id = 32
+phy_mode_id = 1
+tx_power = 10
+enable_lfn = true
+lfn_broadcast_interval = 10000
+lfn_broadcast_sync_period = 5
+storage_prefix = @RUN@/storage/
+pcap_file = @PCAP@
+trace = 15.4-mngt,15.4,icmp,dhcp,rpl,mpl,drop,neigh-15.4,neigh-ipv6,security
+key = @DEPS@/wisun-br-linux-v2.10.3/examples/br_key.pem
+certificate = @DEPS@/wisun-br-linux-v2.10.3/examples/br_cert.pem
+authority = @DEPS@/wisun-br-linux-v2.10.3/examples/ca_cert.pem
+# Fixed first keys, so that frames can also be decrypted from the LFN's PTI in Wireshark.
+gtk[0] = 01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef
+lgtk[0] = fe:dc:ba:98:76:54:32:10:fe:dc:ba:98:76:54:32:10

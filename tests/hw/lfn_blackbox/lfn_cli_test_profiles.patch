@@ -1,0 +1,37 @@
+--- app_cli.c.orig	2026-10-28 14:48:57.690232804 +0100
++++ app_cli.c	2026-10-28 16:38:28.251452201 +0100
+@@ -1277,6 +1277,22 @@
+         case SL_WISUN_LFN_PROFILE_ECO:
+           lfn_params = SL_WISUN_PARAMS_LFN_ECO;
+           break;
++        // Black-box test only (HW5 phase 1): shortened timers.
++        case 4: // test_short: Test, registration lifetime 5 min
++          lfn_params = SL_WISUN_PARAMS_LFN_TEST;
++          lfn_params.network.lfn_registration_lifetime_m = 5;
++          break;
++        case 5: // eco_short: Eco, unicast interval 30 s, short DHCP delay, lifetime 10 min
++          lfn_params = SL_WISUN_PARAMS_LFN_ECO;
++          lfn_params.data_layer.unicast_interval_ms = 30000;
++          lfn_params.dhcp.sol_txalg.max_delay_s = 30;
++          lfn_params.dhcp.sol_txalg.irt_s = 60;
++          lfn_params.network.lfn_registration_lifetime_m = 10;
++          break;
++        case 6: // test_mpt20: Test, lfn_maintain_parent_time 20 (parent-loss rule check)
++          lfn_params = SL_WISUN_PARAMS_LFN_TEST;
++          lfn_params.data_layer.lfn_maintain_parent_time = 20;
++          break;
+         default:
+           printf("[Failed: unsupported LFN profile]\r\n");
+           goto cleanup;
+--- app_settings.c.orig	2026-10-28 14:48:57.691194734 +0100
++++ app_settings.c	2026-10-28 16:38:28.251687784 +0100
+@@ -475,6 +475,9 @@
+   { "balanced", SL_WISUN_LFN_PROFILE_BALANCED },
+   { "eco", SL_WISUN_LFN_PROFILE_ECO },
+   { "automatic", SL_WISUN_LFN_PROFILE_AUTOMATIC },
++  { "test_short", 4 },
++  { "eco_short", 5 },
++  { "test_mpt20", 6 },
+   { NULL, 0 }
+ };
+ 

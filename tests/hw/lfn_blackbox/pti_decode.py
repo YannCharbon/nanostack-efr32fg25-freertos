@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Decode a raw silink DATA_CHANNEL capture (DCH v2 frames carrying EFR32 PTI).
 
-usage: pti_decode.py RAW.bin [--pcap OUT.pcap] [--host-t0 UNIX_S]
+usage: pti_decode.py RAW.bin [--pcap OUT.pcap] [--pcap154 OUT.pcap] [--ie]
 
 - Writes a pcap with link type 298 (LINKTYPE_SILABS_DEBUG_CHANNEL): one record
   per DCH frame, '[' to ']' included, for Wireshark's silabs-dch dissector.
+- --pcap154: a pcap of the PSDUs alone (FCS removed, link type 230 IEEE802_15_4_NOFCS),
+  stamped with host time when RAW.bin.idx exists, for tshark's 802.15.4 / Wi-SUN
+  dissectors (Wireshark 4.6's silabs-dch dissector does not decode the PTI type).
 - Prints one line per PTI frame: DCH time (s, adapter clock), channel, PSDU
   length, frame control, source and destination (last 2 bytes of the EUI-64),
   the Wi-SUN frame type (UTT-IE or LUTT-IE) and the header sub-IEs present.
@@ -121,12 +124,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("raw")
     ap.add_argument("--pcap")
+    ap.add_argument("--pcap154")
     ap.add_argument("--ie", action="store_true", help="also print the sub-IE bodies (hex)")
     a = ap.parse_args()
     data = open(a.raw, "rb").read()
     out = open(a.pcap, "wb") if a.pcap else None
     if out:
         out.write(struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 298))
+    o154 = open(a.pcap154, "wb") if a.pcap154 else None
+    if o154:
+        o154.write(struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 230))
     host_off = None
     try:
         import bisect
@@ -163,12 +170,19 @@ def main():
         phr_len = rev8(p[3]) | ((rev8(p[2]) & 0x07) << 8)
         psdu = p[4:-6]
         r = parse_psdu(psdu)
+        if o154 and len(psdu) > 4:
+            t = ts / 1e6 + (host_off or 0)
+            us = int(round(t * 1e6))
+            o154.write(struct.pack("<IIII", us // 1000000, us % 1000000, len(psdu) - 4, len(psdu) - 4))
+            o154.write(psdu[:-4])
         hs = f"{ts / 1e6 + host_off:.3f} " if host_off is not None else ""
         print(f"{hs}{ts / 1e6:14.6f} st={start:02x} end={tail[0]:02x} ch={tail[3]:3d} len={len(psdu):4d} phr={phr_len:4d} "
               f"fcf={r.get('fcf', '')} {r['src']:>4}->{r['dst']:<4} {r['ft']:6s} {','.join(r['ies'])}"
               + ("  " + " ".join(r.get("raw", [])) if a.ie else ""))
     if out:
         out.close()
+    if o154:
+        o154.close()
 
 
 if __name__ == "__main__":
