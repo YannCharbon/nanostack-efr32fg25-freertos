@@ -29,9 +29,9 @@
 #define SLOT_US                 50   /* Nanostack callback timer slot */
 
 /* Run loop: longest wait without a notification, in ms; 0 = no limit.
- * It only catches a missed notification. With the tickless event loop
- * (NS_EVENTLOOP_TICKLESS) it is also a wake of its own (10/s at 100 ms): set
- * FW_RUNLOOP_SAFETY_MS=0 once the tickless loop is validated on the boards. */
+ * It only catches a missed notification. With idle-tick skipping in the event loop
+ * (NS_EVENTLOOP_SKIP_IDLE_TICKS) it is also a wake of its own (10/s at 100 ms): set
+ * FW_RUNLOOP_SAFETY_MS=0 once idle-tick skipping is validated on the boards. */
 #ifndef FW_RUNLOOP_SAFETY_MS
 #define FW_RUNLOOP_SAFETY_MS    100
 #endif
