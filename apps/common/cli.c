@@ -11,6 +11,7 @@
  *   radio clear           reset radio and port (timer lateness) statistics
  *   reset                 reboot
  *   nodes                 (BR) RPL routing table
+ *   pstats [clear]        power/activity statistics (only with FW_POWER_STATS=ON)
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -25,6 +26,7 @@
 #include "mbed-client-libservice/ip6string.h"
 
 #include "ns_port.h"
+#include "ns_pstats.h"
 #include "rail_phy.h"
 #include "node.h"
 
@@ -92,6 +94,57 @@ static void cmd_trace(int level)
     mbed_trace_config_set(map[level]);
 }
 
+#if FW_POWER_STATS
+/* One "ps <key> ..." line per item, for tests/hw/pstats_parse.py. */
+static void cmd_pstats(void)
+{
+    static struct ps_snapshot p;   /* large: keep it off the task stack */
+    static const char *cause[PS_C_COUNT] = { "rx", "txev", "prepare", "fhss", "cbt", "event", "cli", "none" };
+    static const char *kind[PS_K_COUNT] = { "fhss", "rx", "txdone", "txstart", "event", "poll", "aes", "ecp" };
+    static const char *radio[PS_R_COUNT] = { "idle", "rx", "tx" };
+
+    ns_pstats_get(&p);
+    ns_port_console_printf("ps elapsed_us %lu cpu_hz %lu cycles %llu wakes %lu\r\n", (unsigned long)p.elapsed_us,
+                           (unsigned long)p.cpu_hz, (unsigned long long)p.cycles_total, (unsigned long)p.wakes);
+    for (int i = 0; i < 3; i++) {
+        ns_port_console_printf("ps em %d us %llu entries %lu\r\n", i, (unsigned long long)p.em_us[i],
+                               (unsigned long)p.em_entries[i]);
+    }
+    ns_port_console_printf("ps wake n %lu cyc %llu max %lu\r\n", (unsigned long)p.wake.count,
+                           (unsigned long long)p.wake.cycles, (unsigned long)p.wake.max);
+    for (int i = 0; i < PS_C_COUNT; i++) {
+        ns_port_console_printf("ps cause %s n %lu cyc %llu max %lu\r\n", cause[i], (unsigned long)p.by_cause[i].count,
+                               (unsigned long long)p.by_cause[i].cycles, (unsigned long)p.by_cause[i].max);
+    }
+    for (int i = 0; i < PS_MAX_CBT; i++) {
+        if (p.cbt[i].count) {
+            ns_port_console_printf("ps cbt %d fn %p n %lu cyc %llu max %lu primary %lu alone %lu\r\n", i, p.cbt_fn[i],
+                                   (unsigned long)p.cbt[i].count, (unsigned long long)p.cbt[i].cycles,
+                                   (unsigned long)p.cbt[i].max, (unsigned long)p.cbt_wake_cause[i],
+                                   (unsigned long)p.cbt_only_empty[i]);
+        }
+    }
+    for (int i = 0; i < PS_K_COUNT; i++) {
+        ns_port_console_printf("ps kind %s n %lu cyc %llu max %lu\r\n", kind[i], (unsigned long)p.kind[i].count,
+                               (unsigned long long)p.kind[i].cycles, (unsigned long)p.kind[i].max);
+    }
+    ns_port_console_printf("ps work rx %lu txev %lu prepare %lu fhss %lu cbt %lu event %lu cli %lu\r\n",
+                           (unsigned long)p.work_count[0], (unsigned long)p.work_count[1],
+                           (unsigned long)p.work_count[2], (unsigned long)p.work_count[3],
+                           (unsigned long)p.work_count[4], (unsigned long)p.work_count[5],
+                           (unsigned long)p.work_count[6]);
+    for (int i = 0; i < PS_R_COUNT; i++) {
+        ns_port_console_printf("ps radio %s us %llu entries %lu\r\n", radio[i], (unsigned long long)p.radio_us[i],
+                               (unsigned long)p.radio_entries[i]);
+    }
+    ns_port_console_printf("ps frames rx %lu rx_air_us %llu tx %lu tx_air_us %llu start_rx %lu idle %lu\r\n",
+                           (unsigned long)p.rx_frames, (unsigned long long)p.rx_frame_us, (unsigned long)p.tx_frames,
+                           (unsigned long long)p.tx_air_us, (unsigned long)p.start_rx_calls,
+                           (unsigned long)p.idle_calls);
+    ns_port_console_printf("ps end\r\n");
+}
+#endif
+
 static void execute(char *s)
 {
     char *argv[ARGS_MAX];
@@ -147,6 +200,14 @@ static void execute(char *s)
     } else if (!strcmp(argv[0], "radio") && argc == 2 && !strcmp(argv[1], "clear")) {
         rail_phy_clear_stats();
         ns_port_clear_stats();
+#if FW_POWER_STATS
+    } else if (!strcmp(argv[0], "pstats")) {
+        if (argc == 2 && !strcmp(argv[1], "clear")) {
+            ns_pstats_clear();
+        } else {
+            cmd_pstats();
+        }
+#endif
     } else if (!strcmp(argv[0], "reset")) {
         NVIC_SystemReset();
     } else if (!app_role_cli(argc, argv)) {
@@ -166,6 +227,7 @@ void cli_poll(void)
     int c;
 
     while ((c = ns_port_console_getchar()) >= 0) {
+        ns_pstats_mark(PS_W_CLI);
         if (c == '\r' || c == '\n') {
             if (!line_len) {
                 continue;

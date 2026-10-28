@@ -21,6 +21,7 @@
 #include "nanostack/mac/fhss_config.h"
 #include "ns_port/critical.h"
 #include "ns_port.h"
+#include "ns_pstats.h"
 
 #define NS_PORT_CALLBACK_TIMERS 16   /* plan: N >= 12, the stack registers ~6 */
 #define NS_PORT_FHSS_TIMERS     4    /* FHSS uses 2-3 distinct callbacks */
@@ -202,7 +203,13 @@ static void dispatch_cb_timers(void)
         if (fire) {
             note_lateness(t->deadline);
             stats.timer_callbacks++;
+#if FW_POWER_STATS
+            uint32_t c0 = ns_pstats_cyc();
             t->fn(i, 0);
+            ns_pstats_cbt(i, (void *)t->fn, ns_pstats_cyc() - c0);
+#else
+            t->fn(i, 0);
+#endif
         }
     }
 }
@@ -332,7 +339,10 @@ static void dispatch_fhss_timers(void)
         if (fire) {
             note_lateness(t->deadline);
             stats.fhss_callbacks++;
+            ns_pstats_mark(PS_W_FHSS);
+            PS_CYC_BEGIN();
             t->fn(t->api, 0);
+            PS_CYC_END(PS_K_FHSS);
         }
     }
 }
@@ -345,6 +355,7 @@ void ns_port_init(void)
     /* RAIL software timers on top of the RAIL protocol timer. RAIL_Init()
      * must have been called by the radio driver already. */
     RAIL_ConfigMultiTimer(true);
+    ns_pstats_init();
 }
 
 void ns_port_get_stats(struct ns_port_stats *st)
@@ -362,17 +373,33 @@ void ns_port_run(void)
     for (;;) {
         stats.loop_iterations++;
         for (unsigned i = 0; i < poll_hook_count; i++) {
+            PS_CYC_BEGIN();
             poll_hooks[i]();
+            PS_CYC_END(PS_K_POLL);
         }
         dispatch_fhss_timers();
         dispatch_cb_timers();
+#if FW_POWER_STATS
+        /* Same as eventOS_scheduler_run_until_idle(), one event at a time. */
+        for (;;) {
+            uint32_t c0 = ns_pstats_cyc();
+            if (!eventOS_scheduler_dispatch_event()) {
+                break;
+            }
+            ns_pstats_kind(PS_K_EVENT, ns_pstats_cyc() - c0);
+            ns_pstats_mark(PS_W_EVENT);
+        }
+#else
         eventOS_scheduler_run_until_idle();
+#endif
         if (any_cb_expired || any_fhss_expired) {
             continue;
         }
         /* The 10 ms event-loop tick timer bounds this wait; the poll hooks
          * (radio bottom half, CLI) are woken by their ISRs. The timeout is
          * only a safety net for a missed notification. */
+        ns_pstats_wake_end();
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100));
+        ns_pstats_wake_begin();
     }
 }

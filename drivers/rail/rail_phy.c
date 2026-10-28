@@ -55,6 +55,7 @@
 #include "mbed-client-libservice/ns_trace.h"
 #include "ns_port/critical.h"
 #include "ns_port.h"
+#include "ns_pstats.h"
 #include "rail_phy.h"
 #include "rail_phy_config.h"
 
@@ -232,7 +233,9 @@ static void start_rx(void)
 #endif
     }
     hop_pending = false;
+    ns_pstats_start_rx_call();
     if (RAIL_StartRx(rh, rail_channel(cur_channel), NULL) == RAIL_STATUS_NO_ERROR) {
+        ns_pstats_radio(PS_R_RX);
         rx_channel = cur_channel;
     } else {
         rx_channel = -1;
@@ -303,6 +306,7 @@ static void rx_capture_isr(void)
     if (RAIL_GetChannel(rh, &slot->rail_ch) != RAIL_STATUS_NO_ERROR) {
         slot->rail_ch = 0xffff;
     }
+    ns_pstats_rx_frame(slot->end - slot->time + (uint32_t)((8u * 8u * 1000000u) / symbol_rate));
     __DMB();
     rx_head++;
 }
@@ -329,6 +333,7 @@ static void rail_events_cb(RAIL_Handle_t handle, RAIL_Events_t events)
         wake = true;      /* end of the frame: apply the deferred channel change */
     }
     if (events & TX_EVENTS) {
+        ns_pstats_radio(PS_R_RX);   /* RAIL goes back to RX after a TX (or a failed CCA) */
         pending_tx_events |= events & TX_EVENTS;
         wake = true;
     }
@@ -373,6 +378,8 @@ static void tx_abort(void)
     prepare_due = false;
     if (tx_state == TXS_ACTIVE) {
         RAIL_Idle(rh, RAIL_IDLE_ABORT, true);
+        ns_pstats_idle_call();
+        ns_pstats_radio(PS_R_IDLE);
         platform_enter_critical();
         pending_tx_events = 0;
         platform_exit_critical();
@@ -462,6 +469,7 @@ static void tx_start_rail(void)
         tx_done(PHY_LINK_CCA_FAIL);
         return;
     }
+    ns_pstats_radio_at(PS_R_TX, tx_start_time);
     {
         /* Deadline: start time + air time (SHR 8 B + PHR + PSDU + FCS) + margin. */
         int32_t wait = (int32_t)(tx_start_time - RAIL_GetTime());
@@ -489,7 +497,12 @@ static void do_prepare(void)
         stats.prepare_lateness_max_us = late;
     }
     tx_state = TXS_PREPARING;
-    ret = drv.phy_tx_done_cb ? drv.phy_tx_done_cb(drv_id, tx_handle, PHY_LINK_CCA_PREPARE, 0, 0) : PHY_TX_ALLOWED;
+    ns_pstats_mark(PS_W_PREPARE);
+    {
+        PS_CYC_BEGIN();
+        ret = drv.phy_tx_done_cb ? drv.phy_tx_done_cb(drv_id, tx_handle, PHY_LINK_CCA_PREPARE, 0, 0) : PHY_TX_ALLOWED;
+        PS_CYC_END(PS_K_TXDONE);
+    }
     if (tx_state != TXS_PREPARING) {
         return;                       /* aborted from inside the callback */
     }
@@ -497,7 +510,11 @@ static void do_prepare(void)
         case PHY_TX_ALLOWED:
             /* cur_channel is now the TX channel (FHSS may have switched it
              * through PHY_EXTENSION_SET_CHANNEL inside the callback). */
-            tx_start_rail();
+            {
+                PS_CYC_BEGIN();
+                tx_start_rail();
+                PS_CYC_END(PS_K_TXSTART);
+            }
             break;
         case PHY_RESTART_CSMA:
             /* Multi-CCA: one CCA now, the MAC already set the next backoff_time. */
@@ -541,8 +558,11 @@ static void handle_tx_events(void)
     RAIL_CancelMultiTimer(&prepare_timer);
     tx_watchdog_due = false;
     tx_state = TXS_IDLE;
+    ns_pstats_mark(PS_W_TXEV);
+    PS_CYC_BEGIN();
     if (ev & RAIL_EVENT_TX_PACKET_SENT) {
         stats.tx_ok++;
+        ns_pstats_tx_frame((uint32_t)(((uint64_t)(8u + PHR_LEN + tx_len + RAIL_PHY_FCS_LEN) * 8u * 1000000u) / symbol_rate));
         tx_done(PHY_LINK_TX_SUCCESS);
     } else if (ev & RAIL_EVENT_TX_CHANNEL_BUSY) {
         stats.tx_cca_busy++;
@@ -562,6 +582,7 @@ static void handle_tx_events(void)
         rx_channel = -1;
         tx_done(PHY_LINK_TX_FAIL);
     }
+    PS_CYC_END(PS_K_TXDONE);
     /* tx_done() may have moved FHSS back to the RX channel. */
     start_rx();
 }
@@ -576,8 +597,11 @@ static void deliver_rx(void)
         last_rx_end = slot->end;
         last_rx_rail_ch = slot->rail_ch;
         stats.rx_ok++;
+        ns_pstats_mark(PS_W_RX);
         if (drv.phy_rx_cb) {
+            PS_CYC_BEGIN();
             drv.phy_rx_cb(slot->buf + PHR_LEN, slot->len, slot->lqi, slot->rssi, drv_id);
+            PS_CYC_END(PS_K_RX);
         }
         rx_tail++;
     }
@@ -617,6 +641,8 @@ static void rail_phy_process(void)
         if (tx_state == TXS_ACTIVE) {
             /* No TX event by the deadline: the TX was lost inside RAIL. */
             RAIL_Idle(rh, RAIL_IDLE_ABORT, true);
+            ns_pstats_idle_call();
+            ns_pstats_radio(PS_R_IDLE);
             platform_enter_critical();
             pending_tx_events = 0;
             platform_exit_critical();
@@ -653,6 +679,8 @@ static int8_t phy_state_control(phy_interface_state_e state, uint8_t channel)
             tx_abort();
             radio_on = false;
             RAIL_Idle(rh, RAIL_IDLE_ABORT, true);
+            ns_pstats_idle_call();
+            ns_pstats_radio(PS_R_IDLE);
             rx_channel = -1;
             break;
     }

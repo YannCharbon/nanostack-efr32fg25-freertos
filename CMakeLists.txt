@@ -14,6 +14,7 @@ set(SISDK_DIR "${CMAKE_SOURCE_DIR}/../.deps/simplicity_sdk" CACHE PATH
 set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
     "Mbed TLS v3.0.0 source tree")
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
+option(FW_POWER_STATS "Power/activity statistics for AEM measurements (HW5): EM times, cycles per wake, radio states, GPIO PC1" OFF)
 set(FW_BOARD "brd4271a" CACHE STRING "Radio board: brd4271a (863-870 MHz, Wi-SUN EU) or brd4270b (902-928 MHz, Wi-SUN NA)")
 set_property(CACHE FW_BOARD PROPERTY STRINGS brd4271a brd4270b)
 if(FW_BOARD STREQUAL "brd4271a")
@@ -85,6 +86,12 @@ add_library(ns_port_freertos STATIC
     port/freertos/heap_wrap.c
     port/freertos/trace_uart.c
 )
+if(FW_POWER_STATS)
+    target_sources(ns_port_freertos PRIVATE port/freertos/power_stats.c)
+    target_link_libraries(ns_port_freertos PRIVATE mbedtls_fw)
+    add_compile_definitions(FW_POWER_STATS=1)
+    message(STATUS "FW_POWER_STATS=ON: power/activity statistics built in (pstats CLI command)")
+endif()
 target_include_directories(ns_port_freertos PUBLIC port/freertos/include)
 target_link_libraries(ns_port_freertos PUBLIC nanostack_port_api)
 target_link_libraries(ns_port_freertos PRIVATE slc nanostack_eventloop)
@@ -130,6 +137,7 @@ function(add_wisun_image name role nslib)
     target_link_options(${name} PRIVATE
         -Wl,--wrap=malloc,--wrap=free,--wrap=calloc,--wrap=realloc
         -Wl,--wrap=_malloc_r,--wrap=_free_r,--wrap=_calloc_r,--wrap=_realloc_r
+        $<$<BOOL:${FW_POWER_STATS}>:-Wl,--wrap=mbedtls_aes_crypt_ecb,--wrap=mbedtls_ecp_mul_restartable,--wrap=mbedtls_ecp_muladd_restartable>
         -Wl,-Map=$<TARGET_FILE_DIR:${name}>/${name}.map
         -Wl,--print-memory-usage
     )

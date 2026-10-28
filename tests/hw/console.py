@@ -4,6 +4,8 @@
 usage: tests/hw/console.py <tty> <logfile> [cmd_fifo]
 Each received line is written as "<host unix time.ms> <line>". Lines written
 to cmd_fifo are sent to the board followed by CR.
+Environment: CONSOLE_BAUD (default 115200), CONSOLE_RTSCTS=1 for hardware flow
+control (Silicon Labs' Wi-SUN sample CLIs).
 """
 import os
 import select
@@ -16,7 +18,8 @@ import serial
 def main():
     tty, log = sys.argv[1], sys.argv[2]
     fifo = sys.argv[3] if len(sys.argv) > 3 else None
-    ser = serial.Serial(tty, 115200, timeout=0)
+    ser = serial.Serial(tty, int(os.environ.get("CONSOLE_BAUD", "115200")), timeout=0,
+                        rtscts=os.environ.get("CONSOLE_RTSCTS") == "1")
     fd_fifo = None
     if fifo:
         if not os.path.exists(fifo):
