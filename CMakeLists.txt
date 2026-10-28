@@ -16,7 +16,7 @@ set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
 option(FW_POWER_STATS "Power/activity statistics for AEM measurements (HW5): EM times, cycles per wake, radio states, GPIO PC1" OFF)
 set(FW_RUNLOOP_SAFETY_MS "" CACHE STRING
-    "Longest run-loop wait without a notification, ms (0: none). Empty: 100, until idle-tick skipping in the event loop is validated on the boards")
+    "Longest run-loop wait without a notification, ms (0: none). Empty: the default, 0 (validated on the boards with idle-tick skipping)")
 set(FW_BOARD "brd4271a" CACHE STRING "Radio board: brd4271a (863-870 MHz, Wi-SUN EU) or brd4270b (902-928 MHz, Wi-SUN NA)")
 set_property(CACHE FW_BOARD PROPERTY STRINGS brd4271a brd4270b)
 if(FW_BOARD STREQUAL "brd4271a")
@@ -33,7 +33,28 @@ if(NOT FW_REGION STREQUAL _region_default)
     message(FATAL_ERROR "FW_REGION=${FW_REGION} does not match FW_BOARD=${FW_BOARD} (${_region_default} only)")
 endif()
 add_compile_definitions(FW_REGION_${FW_REGION}=1)
-message(STATUS "Firmware variant: board ${FW_BOARD}, Wi-SUN region ${FW_REGION}")
+# Wi-SUN PHY mode. EU: 1a (default; operating class 1, 69 channels at 100 kHz,
+# 50 kbit/s) or 3 (operating class 2, 35 channels at 200 kHz, 150 kbit/s, radio
+# config sdk/gen/<board>-mode3). NA: 1b only.
+if(FW_REGION STREQUAL "EU")
+    set(_mode_default 1a)
+    set(_modes 1a 3)
+else()
+    set(_mode_default 1b)
+    set(_modes 1b)
+endif()
+set(FW_PHY_MODE "${_mode_default}" CACHE STRING "Wi-SUN PHY mode: EU 1a (default) or 3; NA 1b")
+set_property(CACHE FW_PHY_MODE PROPERTY STRINGS 1a 1b 3)
+if(NOT FW_PHY_MODE IN_LIST _modes)
+    message(FATAL_ERROR "FW_PHY_MODE=${FW_PHY_MODE} is not available for FW_REGION=${FW_REGION} (${_modes})")
+endif()
+if(FW_PHY_MODE STREQUAL "3")
+    set(FW_SDK_GEN "${FW_BOARD}-mode3")
+    add_compile_definitions(FW_PHY_MODE_3=1)
+else()
+    set(FW_SDK_GEN "${FW_BOARD}")
+endif()
+message(STATUS "Firmware variant: board ${FW_BOARD}, Wi-SUN region ${FW_REGION}, PHY mode ${FW_PHY_MODE} (sdk/gen/${FW_SDK_GEN})")
 
 foreach(d NANOSTACK_DIR SISDK_DIR MBEDTLS_DIR)
     get_filename_component(${d} "${${d}}" ABSOLUTE)
@@ -56,7 +77,7 @@ endif()
 # heap_4, sleeptimer, power manager, SE manager, iostream VCOM, RAIL PA util,
 # rail_config.c) plus its include paths, defines, CPU flags and linker script.
 set(SDK_PATH "${SISDK_DIR}")
-include(sdk/gen/${FW_BOARD}/cmake_gcc/efr32fg25_sdk.cmake)
+include(sdk/gen/${FW_SDK_GEN}/cmake_gcc/efr32fg25_sdk.cmake)
 # The SDK sources are not ours: keep their warnings out of the way.
 target_compile_options(slc PRIVATE -w)
 # The generated target propagates --specs=nano.specs; the firmware links the

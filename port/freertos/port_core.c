@@ -28,12 +28,15 @@
 #define NS_PORT_POLL_HOOKS      4
 #define SLOT_US                 50   /* Nanostack callback timer slot */
 
-/* Run loop: longest wait without a notification, in ms; 0 = no limit.
- * It only catches a missed notification. With idle-tick skipping in the event loop
- * (NS_EVENTLOOP_SKIP_IDLE_TICKS) it is also a wake of its own (10/s at 100 ms): set
- * FW_RUNLOOP_SAFETY_MS=0 once idle-tick skipping is validated on the boards. */
+/* Run loop: longest wait without a notification, in ms; 0 = no limit (the
+ * default). A non-zero value only catches a missed notification; with
+ * idle-tick skipping in the event loop (NS_EVENTLOOP_SKIP_IDLE_TICKS) it is
+ * also a wake of its own whenever the loop would sleep longer. Validated on
+ * the boards on 2026-10-28 (router and border router, periodic tick against
+ * skipping with 100 ms and with 0): same join, ping and timer behaviour, so the
+ * default is 0. */
 #ifndef FW_RUNLOOP_SAFETY_MS
-#define FW_RUNLOOP_SAFETY_MS    100
+#define FW_RUNLOOP_SAFETY_MS    0
 #endif
 
 static TaskHandle_t stack_task;

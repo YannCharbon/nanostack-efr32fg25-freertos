@@ -8,9 +8,14 @@
 
 /* PHY data rate and modulation index of the radio config (the channel plan
  * itself is read from rail_config.c). NA/1b: 50 kbit/s, h = 1.0;
- * EU/1a: 50 kbit/s, h = 0.5. FW_REGION_EU comes from the build (FW_REGION). */
+ * EU/1a: 50 kbit/s, h = 0.5; EU/3: 150 kbit/s, h = 0.5. FW_REGION_EU and
+ * FW_PHY_MODE_3 come from the build (FW_REGION, FW_PHY_MODE). */
 #ifndef RAIL_PHY_DATARATE
+#ifdef FW_PHY_MODE_3
+#define RAIL_PHY_DATARATE 150000
+#else
 #define RAIL_PHY_DATARATE 50000
+#endif
 #endif
 #ifndef RAIL_PHY_MOD_INDEX
 #ifdef FW_REGION_EU
@@ -45,9 +50,10 @@
 #define RAIL_PHY_MIN_SCHED_AHEAD_US 400
 #endif
 
-/* CCA length: 8 symbols at 50 kbit/s = 160 µs. */
+/* CCA length: 8 symbols (2-FSK: 1 bit per symbol): 160 µs at 50 kbit/s,
+ * 53 µs at 150 kbit/s. */
 #ifndef RAIL_PHY_CCA_DURATION_US
-#define RAIL_PHY_CCA_DURATION_US 160
+#define RAIL_PHY_CCA_DURATION_US (8UL * 1000000UL / RAIL_PHY_DATARATE)
 #endif
 
 /* CCA threshold until the MAC sets one (estimate). */

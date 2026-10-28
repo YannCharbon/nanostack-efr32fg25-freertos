@@ -15,18 +15,27 @@
 #define APP_NETWORK_NAME "Wi-SUN Network"
 #endif
 
-/* Must match the radio configuration (sdk/gen/<board>/autogen/rail_config.c),
- * selected by the build's FW_REGION:
- *   EU: domain EU, operating class 1 (863.1 MHz + n*100 kHz, 69 channels),
- *       PHY mode 1a (50 kbit/s 2-FSK, h = 0.5)  - BRD4271A
+/* Must match the radio configuration (sdk/gen/<board>[-mode3]/autogen/rail_config.c),
+ * selected by the build's FW_REGION and FW_PHY_MODE:
+ *   EU, 1a: domain EU, operating class 1 (863.1 MHz + n*100 kHz, 69 channels),
+ *       PHY mode 1a (50 kbit/s 2-FSK, h = 0.5)  - BRD4271A (default)
+ *   EU, 3: domain EU, operating class 2 (863.1 MHz + n*200 kHz, 35 channels),
+ *       PHY mode 3 (150 kbit/s 2-FSK, h = 0.5)  - BRD4271A, FW_PHY_MODE=3
  *   NA: domain NA, operating class 1 (902.2 MHz + n*200 kHz, 129 channels),
  *       PHY mode 1b (50 kbit/s 2-FSK, h = 1.0)  - BRD4270B */
-#ifdef FW_REGION_EU
+#if defined FW_REGION_EU && defined FW_PHY_MODE_3
 #define APP_WS_DOMAIN_DEFAULT REG_DOMAIN_EU
+#define APP_WS_CLASS_DEFAULT  2
+#define APP_WS_MODE_DEFAULT   0x03
+#define APP_WS_CHAN_LAST_DEFAULT 34
+#elif defined FW_REGION_EU
+#define APP_WS_DOMAIN_DEFAULT REG_DOMAIN_EU
+#define APP_WS_CLASS_DEFAULT  1
 #define APP_WS_MODE_DEFAULT   0x1a
 #define APP_WS_CHAN_LAST_DEFAULT 68
 #else
 #define APP_WS_DOMAIN_DEFAULT REG_DOMAIN_NA
+#define APP_WS_CLASS_DEFAULT  1
 #define APP_WS_MODE_DEFAULT   0x1b
 #define APP_WS_CHAN_LAST_DEFAULT 128
 #endif
@@ -34,7 +43,7 @@
 #define APP_WS_DOMAIN APP_WS_DOMAIN_DEFAULT
 #endif
 #ifndef APP_WS_CLASS
-#define APP_WS_CLASS 1
+#define APP_WS_CLASS APP_WS_CLASS_DEFAULT
 #endif
 #ifndef APP_WS_MODE
 #define APP_WS_MODE APP_WS_MODE_DEFAULT

@@ -8,28 +8,49 @@
 # Needs: slc-cli (>= 6.0) + Java 21, and the Simplicity SDK checkout
 # (git-lfs objects for the xG25 RAIL library pulled). See README.md.
 #
-# usage: tools/sdk_generate.sh <board> [SISDK_DIR]
-#   board: brd4271a (EFR32FG25, 863-870 MHz, on BRD4001A) -> EU_1_1a radio config
-#          brd4270b (EFR32FG25, 902-928 MHz, on BRD4002A) -> NA_1_1b radio config
+# usage: tools/sdk_generate.sh <target> [SISDK_DIR]
+#   target: brd4271a       (EFR32FG25, 863-870 MHz, on BRD4001A) -> EU_1_1a radio config
+#           brd4271a-mode3 (same board) -> EU plan 33 (863.1 MHz + n*200 kHz, 35 channels),
+#                          PHY mode 3 (150 kbit/s 2-FSK, h = 0.5) = FAN 1.0 EU class 2 mode 3
+#           brd4270b       (EFR32FG25, 902-928 MHz, on BRD4002A) -> NA_1_1b radio config
 # The radio config is picked by the SDK component radio_config_brd_wisun_singlephy
-# from the board. Output: sdk/gen/<board>/.
+# from the board. That component has no mode 3 config for BRD4271A, so for
+# brd4271a-mode3 the generated radio_settings.radioconf is switched to the SDK
+# PHY PHY_WISUN_FAN_1v1_863MHz_Plan33_2FSK_3_EU and the project is generated a
+# second time (slc keeps an existing project config file and regenerates
+# rail_config.c from it). Output: sdk/gen/<target>/.
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-BOARD=${1:?usage: tools/sdk_generate.sh <brd4271a|brd4270b> [SISDK_DIR]}
-case "$BOARD" in
-    brd4271a) MAINBOARD=brd4001a ;;
-    brd4270b) MAINBOARD=brd4002a ;;
-    *) echo "unknown board $BOARD" >&2; exit 1 ;;
+TARGET=${1:?usage: tools/sdk_generate.sh <brd4271a|brd4271a-mode3|brd4270b> [SISDK_DIR]}
+PHY_OVERRIDE=
+case "$TARGET" in
+    brd4271a) BOARD=brd4271a; MAINBOARD=brd4001a ;;
+    brd4271a-mode3) BOARD=brd4271a; MAINBOARD=brd4001a
+        PHY_OVERRIDE="PHY_WISUN_FAN_1v1_863MHz_Plan32_2FSK_1a_EU 256 324 PHY_WISUN_FAN_1v1_863MHz_Plan33_2FSK_3_EU 0 34" ;;
+    brd4270b) BOARD=brd4270b; MAINBOARD=brd4002a ;;
+    *) echo "unknown target $TARGET" >&2; exit 1 ;;
 esac
 SISDK_DIR=${2:-${SISDK_DIR:-$REPO/../.deps/simplicity_sdk}}
 SISDK_DIR=$(cd "$SISDK_DIR" && pwd)
-OUT=$REPO/sdk/gen/$BOARD
+OUT=$REPO/sdk/gen/$TARGET
 SLC=${SLC:-slc}
 
+slc_generate() {
+    "$SLC" generate -p "$REPO/sdk/efr32fg25_sdk.slcp" -s "$SISDK_DIR" -d "$OUT" \
+        --with "$BOARD,$MAINBOARD" -o cmake -nocp --no-daemon 2>&1 | grep -v "^Warning: Duplicate definition of register" || true
+}
 rm -rf "$OUT"
 "$SLC" signature trust --sdk "$SISDK_DIR" >/dev/null
-"$SLC" generate -p "$REPO/sdk/efr32fg25_sdk.slcp" -s "$SISDK_DIR" -d "$OUT" \
-    --with "$BOARD,$MAINBOARD" -o cmake -nocp --no-daemon 2>&1 | grep -v "^Warning: Duplicate definition of register" || true
+slc_generate
+if [ -n "$PHY_OVERRIDE" ]; then
+    set -- $PHY_OVERRIDE
+    RC=$OUT/config/rail/radio_settings.radioconf
+    grep -q "$1" "$RC" || { echo "$RC does not select $1" >&2; exit 1; }
+    sed -i -e "s|$1|$4|g" -e "s|<channel_number_start>$2<|<channel_number_start>$5<|" \
+        -e "s|<channel_number_end>$3<|<channel_number_end>$6<|" "$RC"
+    slc_generate
+    grep -q '"result_code": "0"' "$OUT/autogen/radioconf_generation_log.json" || { echo "Radio Configurator failed for $4" >&2; exit 1; }
+fi
 test -f "$OUT/cmake_gcc/efr32fg25_sdk.cmake" || { echo "slc generate failed" >&2; exit 1; }
 test -f "$OUT/autogen/rail_config.c" || { echo "rail_config.c not generated (Radio Configurator failed)" >&2; exit 1; }
 

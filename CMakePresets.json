@@ -16,6 +16,13 @@
       "displayName": "BRD4270B (902-928 MHz), Wi-SUN NA class 1 / mode 1b: BR + RN",
       "binaryDir": "${sourceDir}/build/fw-na",
       "cacheVariables": { "FW_BOARD": "brd4270b", "FW_REGION": "NA" }
+    },
+    {
+      "name": "fw-mode3",
+      "inherits": "fw",
+      "displayName": "BRD4271A (863-870 MHz), Wi-SUN EU class 2 / mode 3 (150 kbit/s): BR + RN",
+      "binaryDir": "${sourceDir}/build/fw-mode3",
+      "cacheVariables": { "FW_PHY_MODE": "3" }
     }
   ],
   "buildPresets": [
@@ -24,6 +31,9 @@
     { "name": "all",    "configurePreset": "fw",    "targets": ["wisun_br", "wisun_rn"] },
     { "name": "br-na",  "configurePreset": "fw-na", "targets": ["wisun_br"] },
     { "name": "rn-na",  "configurePreset": "fw-na", "targets": ["wisun_rn"] },
-    { "name": "all-na", "configurePreset": "fw-na", "targets": ["wisun_br", "wisun_rn"] }
+    { "name": "all-na", "configurePreset": "fw-na", "targets": ["wisun_br", "wisun_rn"] },
+    { "name": "br-mode3",  "configurePreset": "fw-mode3", "targets": ["wisun_br"] },
+    { "name": "rn-mode3",  "configurePreset": "fw-mode3", "targets": ["wisun_rn"] },
+    { "name": "all-mode3", "configurePreset": "fw-mode3", "targets": ["wisun_br", "wisun_rn"] }
   ]
 }
