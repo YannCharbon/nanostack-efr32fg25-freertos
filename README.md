@@ -561,6 +561,30 @@ firmware as (c)). The network forms: RN cold joins 74, 88, 101 s, BR-role runs
 - Mode 3 cuts the current by sending fewer and shorter frames: 35 channels per
   asynchronous sweep instead of 69, at three times the rate.
 
+## FAN 1.1 LFN on the kits (GS8 stage 6, 2026-10-29)
+
+**Images.** `wisun_lfn` is the router program started as a Wi-SUN FAN 1.1 Limited Function Node (`APP_ROLE_LFN`: `NET_6LOWPAN_HOST`, FAN 1.1, the LFN settings' defaults of the stack's `docs/LFN_STACK.md` §5). `FW_LFN_PARENT=ON` builds the border router with FAN 1.1 and LFN parenting, and a MAC key table of 7 entries (4 GTKs, 3 LGTKs). Every preset builds `wisun_lfn`; the parent needs its own build directory:
+
+```bash
+cmake --preset fw-mode3 -B build/fw-lfn -DFW_LFN_PARENT=ON
+cmake --build build/fw-lfn --target wisun_br wisun_lfn
+```
+
+**What the LFN image does differently.**
+- **EM2 between its windows (HW8 H3).** It does not hold EM1 (the FFN images do, `apps/common/node.c`), and `rail_phy_sleep_init()` configures RAIL's timer synchronisation and its power-manager integration: RAIL keeps its timebase across EM2 and wakes the chip before its next timer, so every port timer (RAIL multitimers) keeps working. FreeRTOS tickless idle lets the power manager enter EM2 whenever the radio is idle. The VCOM UART no longer holds EM1 to keep its receiver on (`SL_IOSTREAM_EUSART_VCOM_RESTRICT_ENERGY_MODE_TO_ALLOW_RECEPTION` 0, set by `tools/sdk_generate.sh`); the FFN images hold EM1 anyway. The LFN's console therefore reads input only while it is awake.
+- **Quiet console.** No periodic status print, and traces at ERROR from `APP_LFN_QUIET_AFTER_S` (30 s) after the join: INFO traces, and some inherited WARN traces on every frame, would keep the UART and the CPU busy.
+- **Radio driver (H1, H2).** `PHY_EXTENSION_READ_RX_ACTIVE` (a frame is being received: the MAC keeps a window open until it ends) and `PHY_EXTENSION_SET_BACKOFF_RX_OFF` (the radio idles from the TX request to the scheduled CCA and TX). Windows open and close through the MAC's state control (RX on, idle); a scheduled TX starts from idle, and RAIL returns to RX after it for the ACK.
+- **Port.** `eventOS_callback_timer_start_usec()` (`NS_PORT_TIMER_USEC`): the event loop's idle-tick skipping lands its tick exactly on the 10 ms grid.
+- **Test tools.** `ping <ipv6> [count] [size] [interval ms]` counts a reply to any request of the series, and waits 12 s after the last one: a reply from an LFN waits for its listen window.
+
+**Results** (kit 440235509 as the LFN, AEM; kit 440240046 as the border router; EU mode 3, +10 dBm, the boards side by side at −16 dBm; LFN settings' defaults: listen interval 5 s after the parent's LTO, LFN broadcast slots every 10 s, a sync frame every 50 s):
+- The LFN joins in 32–74 s from its reset (4 boots) (discovery window, parent chosen, EAP-TLS, LGTK, LPCS/LPC, DHCPv6, address registration); no fault in 4 boots once the memory errors below were fixed.
+- UDP both ways (border router → LFN, and the LFN's acknowledgement back).
+- **Idle current 24.9–26.9 µA** (AEM, 18 windows of 60 s in 3 boots). The emulator gives 24.0–24.7 µA for the same settings (`mesh-emulator-orchestrator/docs/POWER_MODEL.md` §17). Silicon Labs' LFN drew 49 µA on the same kit with its Test profile, whose intervals are the same (root repo, `HW5_BlackBox_Phase1_Results.md`).
+- Pings from the border router, one request every 6 s: 10 of 10 answered, round trips 0.17–4.4 s (the wait for the LFN's next 5 s window; Silicon Labs' LFN: 0.45–5.1 s). With one request per second, replies came back 3.9–15.8 s later and 6 of 10 were not back after the grace: the parent sends an LFN at most one frame per listen interval, as Silicon Labs' parent does.
+
+**Found on the way.** The first image faulted during EAPOL (an unaligned access in SHA-1, then a bus fault in the MAC's IE copy). Both were heap corruption from a 7-byte overflow in the stack's 4-way handshake message 2 for LFNs; AddressSanitizer in the emulator found it and a DHCPv6 relay stack-scope error (the stack's `docs/LFN_STACK.md` §10).
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority
@@ -688,6 +712,7 @@ firmware as (c)). The network forms: RN cold joins 74, 88, 101 s, BR-role runs
   - scheduled TX, CCA, Enh-ACK timing, FHSS hopping and synchronisation;
   - EAP-TLS with the SE TRNG, DHCPv6, RPL, ping, UDP;
   - IRQ priorities (no boot warning), stack sizes, VCOM.
+- **LFN (FAN 1.1):** see [FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29). Not done: our LFN against Silicon Labs' parent and our parent against Silicon Labs' LFN (black-box phases 2–3, which need the interoperability IEs LCP/FLUS); an LFN under a router on the kits (two kits only); long runs; the LFN's console in EM2.
 - **Still unverified:**
   - the NA/BRD4270B variant on hardware;
   - more than two nodes or multi-hop;

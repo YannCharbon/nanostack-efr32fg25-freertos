@@ -12,6 +12,7 @@
 
 #define APP_EVENT_STATUS 0x40   /* periodic status print */
 #define APP_EVENT_PING   0x41   /* next ping of a series */
+#define APP_EVENT_QUIET  0x42   /* LFN: traces down to ERROR (APP_LFN_QUIET_AFTER_S) */
 
 struct node {
     int8_t ws_if;       /* Wi-SUN interface (ws0) */
@@ -47,7 +48,7 @@ void node_print_status(bool verbose);
 void udp_test_init(void);
 int udp_test_send(const uint8_t addr[16], const char *text);
 void ping_init(void);
-int ping_start(const uint8_t addr[16], unsigned count, unsigned size);
+int ping_start(const uint8_t addr[16], unsigned count, unsigned size, unsigned interval_ms);
 void ping_on_timer(void);
 void cli_init(void);
 void cli_poll(void);

@@ -140,10 +140,23 @@ int eventOS_callback_timer_unregister(int ns_timer_id)
     return 0;
 }
 
+static int cb_timer_start_us(int ns_timer_id, uint32_t delay_us);
+
 int eventOS_callback_timer_start(int ns_timer_id, uint16_t slots)
 {
+    return cb_timer_start_us(ns_timer_id, (uint32_t)slots * SLOT_US);
+}
+
+/* The porting API's optional µs timer (NS_PORT_TIMER_USEC): the event loop's
+ * idle-tick skipping lands its tick exactly on the 10 ms grid with it. */
+int eventOS_callback_timer_start_usec(int ns_timer_id, int usec)
+{
+    return cb_timer_start_us(ns_timer_id, usec > 0 ? (uint32_t)usec : 0);
+}
+
+static int cb_timer_start_us(int ns_timer_id, uint32_t delay_us)
+{
     struct cb_timer *t;
-    uint32_t delay_us = (uint32_t)slots * SLOT_US;
 
     if (ns_timer_id < 0 || ns_timer_id >= NS_PORT_CALLBACK_TIMERS || !cb_timers[ns_timer_id].used) {
         return -1;

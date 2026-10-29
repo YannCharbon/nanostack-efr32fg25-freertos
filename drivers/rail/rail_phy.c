@@ -89,6 +89,10 @@ static uint16_t tx_len;
 static uint8_t tx_handle;
 static uint32_t csma_backoff_time;   /* absolute µs, 0 = none */
 static bool csma_cca_enabled;
+/* FAN 1.1 LFN (GS8 stage 6): the MAC asks for no listening during the CSMA
+ * backoff outside its windows (PHY_EXTENSION_SET_BACKOFF_RX_OFF): the radio
+ * idles from the TX request to the scheduled CCA/TX. */
+static bool backoff_rx_off;
 static bool tx_is_ack;
 static uint32_t tx_start_time;
 static int8_t cca_threshold_dbm = RAIL_PHY_CCA_THRESHOLD_DBM;
@@ -199,6 +203,9 @@ static void start_rx(void)
 {
     if (!radio_on || tx_state == TXS_ACTIVE) {
         return;
+    }
+    if (backoff_rx_off && (tx_state == TXS_WAIT_PREPARE || tx_state == TXS_PREPARING)) {
+        return;     /* idle during the backoff; RX after the TX */
     }
     if (cur_channel >= rail_ch_count) {
         /* The MAC brings the PHY up on channel 0xff before FHSS has picked a
@@ -703,6 +710,11 @@ static int8_t phy_tx(uint8_t *data, uint16_t len, uint8_t handle, data_protocol_
         csma_backoff_time = RAIL_GetTime();  /* "send now" */
     }
     arm_prepare();
+    if (backoff_rx_off && rx_channel >= 0 && !rx_frame_in_progress()) {
+        RAIL_Idle(rh, RAIL_IDLE, true);
+        ns_pstats_radio(PS_R_IDLE);
+        rx_channel = -1;
+    }
     return 0;
 }
 
@@ -810,12 +822,33 @@ static int8_t phy_extension(phy_extension_type_e type, uint8_t *data)
         case PHY_EXTENSION_SET_DATA_WHITENING:
             whitening = *data;
             break;
+        case PHY_EXTENSION_READ_RX_ACTIVE:
+            /* FAN 1.1 LFN: a frame is being received (sync word seen): the
+             * MAC keeps its window open until it ends */
+            *data = rx_channel >= 0 && rx_frame_in_progress();
+            break;
+        case PHY_EXTENSION_SET_BACKOFF_RX_OFF:
+            backoff_rx_off = *data;
+            break;
         case PHY_EXTENSION_SET_802_15_4_MODE:
         case PHY_EXTENSION_FILTERING_SUPPORT:
         default:
             break;
     }
     return 0;
+}
+
+/* FAN 1.1 LFN (GS8 stage 6, HW8 H3): RAIL keeps its timebase across EM2,
+ * synchronised to the low-frequency clock, and wakes the chip before its
+ * next timer (RAIL multitimers carry every port timer); the power manager
+ * enters EM2 whenever the radio idles and no one needs EM1. Call with the
+ * radio idle, after rail_phy_hw_init(). */
+int rail_phy_sleep_init(void)
+{
+    if (RAIL_ConfigSleep(rh, RAIL_SLEEP_CONFIG_TIMERSYNC_ENABLED) != RAIL_STATUS_NO_ERROR) {
+        return -1;
+    }
+    return RAIL_InitPowerManager() == RAIL_STATUS_NO_ERROR ? 0 : -2;
 }
 
 /* ------------------------------------------------------------------ init */

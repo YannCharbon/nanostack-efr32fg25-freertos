@@ -20,6 +20,7 @@
 #include "nanostack/net_interface.h"
 #include "nanostack/ethernet_mac_api.h"
 #include "nanostack/ws_bbr_api.h"
+#include "nanostack/ws_management_api.h"
 #include "nanostack/net_ws_test.h"
 #include "nanostack/mac/platform/arm_hal_phy.h"
 
@@ -99,6 +100,21 @@ void app_role_configure(void)
     if (ret) tr_warn("own certificate: %d", ret);
     ret = arm_network_trusted_certificate_add(&tls_ca);
     if (ret) tr_warn("trusted certificate: %d", ret);
+#ifdef APP_LFN_PARENT
+    /* FAN 1.1 with LFN parenting (GS8 stage 6, FW_LFN_PARENT): the LFN
+       settings' defaults (the stack's docs/LFN_STACK.md §5) */
+    {
+        ws_lfn_settings_t lfn;
+        ret = ws_management_fan_version_set(g_node.ws_if, 2 /* FAN 1.1 (1: FAN 1.0) */);
+        if (ret) tr_warn("ws_management_fan_version_set: %d", ret);
+        ws_management_lfn_settings_defaults(&lfn);
+        ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
+        if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
+        ret = ws_management_lfn_parent_set(g_node.ws_if, true);
+        if (ret) tr_warn("ws_management_lfn_parent_set: %d", ret);
+        tr_info("FAN 1.1, LFN parenting on");
+    }
+#endif
 #if APP_BR_FORCE_ZERO_GTKS
     {
         static uint8_t zero_gtk[4][16];

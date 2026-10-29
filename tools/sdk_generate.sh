@@ -72,6 +72,12 @@ sed -i \
     -e 's|^   "\.\./|   "${CMAKE_CURRENT_LIST_DIR}/../|' \
     -e '/^# BEGIN_SIMPLICITY_STUDIO_METADATA/d' \
     "$F"
+# The VCOM UART must not hold the system in EM1 to keep its receiver on: the
+# LFN image sleeps in EM2 between its windows (GS8 stage 6, HW8). The FFN
+# images hold EM1 themselves (apps/common/node.c), so this changes nothing
+# for them; the console then reads input only while the node is awake.
+sed -i 's|^#define SL_IOSTREAM_EUSART_VCOM_RESTRICT_ENERGY_MODE_TO_ALLOW_RECEPTION    1|#define SL_IOSTREAM_EUSART_VCOM_RESTRICT_ENERGY_MODE_TO_ALLOW_RECEPTION    0|' \
+    "$OUT/config/sl_iostream_eusart_vcom_config.h"
 # Template files we do not use.
 rm -rf "$OUT/cmake_iar" "$OUT/main.c" "$OUT/cmake_gcc/CMakeLists.txt" "$OUT/cmake_gcc/CMakePresets.json" \
        "$OUT/cmake_gcc/toolchain.cmake" "$OUT/cmake_gcc/autogen_toolchain.cmake" \

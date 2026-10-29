@@ -102,7 +102,19 @@
 
 /* Periodic one-line status on the console, seconds (0 = off). */
 #ifndef APP_STATUS_PERIOD_S
+/* LFN: traces at ERROR from this long after it joined (s; 0: never). In EM2
+ * its console cannot receive a "trace" command, and INFO traces keep the
+ * UART and the CPU busy at every radio event (some inherited WARN traces
+ * print on every frame). */
+#ifndef APP_LFN_QUIET_AFTER_S
+#define APP_LFN_QUIET_AFTER_S 30
+#endif
+#ifdef APP_ROLE_LFN
+/* LFN: no periodic print, which would wake it and keep the UART busy */
+#define APP_STATUS_PERIOD_S 0
+#else
 #define APP_STATUS_PERIOD_S 30
+#endif
 #endif
 
 /* Stack task. 8 kB: mbedTLS ECP/TLS run in it (measure with `tasks`). */

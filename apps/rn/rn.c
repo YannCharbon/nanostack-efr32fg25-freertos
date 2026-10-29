@@ -8,6 +8,7 @@
 
 #include "mbed-client-libservice/ns_trace.h"
 #include "nanostack/net_interface.h"
+#include "nanostack/ws_management_api.h"
 
 #include "ns_port.h"
 #include "app_config.h"
@@ -16,7 +17,13 @@
 
 #define TRACE_GROUP "rn"
 
+#ifdef APP_ROLE_LFN
+/* FAN 1.1 LFN (GS8 stage 6, HW8): the router program started as a Limited
+ * Function Node; apps/common/node.c lets it sleep in EM2 */
+const char *const app_role_name = "LFN";
+#else
 const char *const app_role_name = "RN";
+#endif
 
 static arm_certificate_entry_s tls_own;
 static arm_certificate_entry_s tls_ca;
@@ -27,7 +34,11 @@ void app_role_create_interfaces(void)
 
 void app_role_bootstrap_set(void)
 {
+#ifdef APP_ROLE_LFN
+    int ret = arm_nwk_interface_configure_6lowpan_bootstrap_set(g_node.ws_if, NET_6LOWPAN_HOST, NET_6LOWPAN_WS);
+#else
     int ret = arm_nwk_interface_configure_6lowpan_bootstrap_set(g_node.ws_if, NET_6LOWPAN_ROUTER, NET_6LOWPAN_WS);
+#endif
     if (ret) tr_warn("6lowpan bootstrap set: %d", ret);
 }
 
@@ -45,6 +56,17 @@ void app_role_configure(void)
     if (ret) tr_warn("own certificate: %d", ret);
     ret = arm_network_trusted_certificate_add(&tls_ca);
     if (ret) tr_warn("trusted certificate: %d", ret);
+#ifdef APP_ROLE_LFN
+    {
+        ws_lfn_settings_t lfn;
+        ret = ws_management_fan_version_set(g_node.ws_if, 2 /* FAN 1.1 (1: FAN 1.0) */);
+        if (ret) tr_warn("ws_management_fan_version_set: %d", ret);
+        ws_management_lfn_settings_defaults(&lfn);
+        ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
+        if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
+        tr_info("FAN 1.1 LFN");
+    }
+#endif
 }
 
 void app_role_start(void)

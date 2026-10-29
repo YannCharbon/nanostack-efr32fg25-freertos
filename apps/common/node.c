@@ -129,12 +129,21 @@ static void app_tasklet(arm_event_t *ev)
                         g_node.ready_ms = now_ms() - g_node.boot_ms;
                     }
                     node_print_status(false);
+#ifdef APP_ROLE_LFN
+                    if (APP_LFN_QUIET_AFTER_S) {
+                        eventOS_event_timer_request(0, APP_EVENT_QUIET, g_node.tasklet, APP_LFN_QUIET_AFTER_S * 1000u);
+                    }
+#endif
                 } else {
                     g_node.bootstrap_ready = false;
                 }
             }
             break;
         }
+        case APP_EVENT_QUIET:
+            tr_warn("LFN joined %u s ago: traces at ERROR from now (APP_LFN_QUIET_AFTER_S)", APP_LFN_QUIET_AFTER_S);
+            mbed_trace_config_set(TRACE_ACTIVE_LEVEL_ERROR);
+            break;
         case APP_EVENT_STATUS:
             node_print_status(false);
             eventOS_event_timer_request(0, APP_EVENT_STATUS, g_node.tasklet, APP_STATUS_PERIOD_S * 1000u);
@@ -214,7 +223,12 @@ static void stack_task(void *arg)
     mac_api_t *mac;
     static mac_description_storage_size_t storage_sizes = {
         .device_description_table_size = APP_MAC_DEVICE_TABLE_SIZE,
+#ifdef APP_LFN_PARENT
+        /* 4 GTKs and 3 LGTKs (key indexes 5-7, the stack's LFN_STACK.md §8) */
+        .key_description_table_size = 7,
+#else
         .key_description_table_size = 4,
+#endif
         .key_lookup_size = 1,
         .key_usage_size = 3,
     };
@@ -226,10 +240,19 @@ static void stack_task(void *arg)
     mbed_trace_config_set(TRACE_ACTIVE_LEVEL_INFO);
     fault_report_previous();
 
+#ifndef APP_ROLE_LFN
     /* Always-on FFN: the radio receives continuously, never go below EM1. */
     sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+#endif
 
     rail_phy_hw_init();
+#ifdef APP_ROLE_LFN
+    /* LFN: EM2 between its windows, RAIL time kept across sleep (HW8 H3) */
+    if (rail_phy_sleep_init()) {
+        tr_err("rail_phy_sleep_init failed: the LFN will not sleep in EM2");
+        sl_power_manager_add_em_requirement(SL_POWER_MANAGER_EM1);
+    }
+#endif
     ns_port_init();
     g_node.boot_ms = now_ms();
     {

@@ -25,6 +25,10 @@ void rail_phy_hw_init(void);
  * Returns the driver id (>= 0) or < 0 on error. */
 int8_t rail_phy_register(const uint8_t eui64[8]);
 
+/* FAN 1.1 LFN: sleep in EM2 between radio activity, with RAIL's timebase
+ * kept (RAIL timer sync, RAIL power manager). 0 OK. */
+int rail_phy_sleep_init(void);
+
 /* The factory EUI-64 of this chip (DEVINFO), MSB first. */
 void rail_phy_get_eui64(uint8_t eui64[8]);
 

@@ -15,6 +15,7 @@ set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
     "Mbed TLS v3.0.0 source tree")
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
 option(FW_POWER_STATS "Power/activity statistics for AEM measurements (HW5): EM times, cycles per wake, radio states, GPIO PC1" OFF)
+option(FW_LFN_PARENT "Border router: Wi-SUN FAN 1.1 with LFN parenting (GS8 stage 6); the wisun_lfn image needs it" OFF)
 set(FW_RUNLOOP_SAFETY_MS "" CACHE STRING
     "Longest run-loop wait without a notification, ms (0: none). Empty: the default, 0 (validated on the boards with idle-tick skipping)")
 set(FW_BOARD "brd4271a" CACHE STRING "Radio board: brd4271a (863-870 MHz, Wi-SUN EU) or brd4270b (902-928 MHz, Wi-SUN NA)")
@@ -119,6 +120,8 @@ if(FW_POWER_STATS)
     message(STATUS "FW_POWER_STATS=ON: power/activity statistics built in (pstats CLI command)")
 endif()
 target_include_directories(ns_port_freertos PUBLIC port/freertos/include)
+# eventOS_callback_timer_start_usec() exists (ns_port/os_timer.h)
+target_compile_definitions(ns_port_freertos PUBLIC NS_PORT_TIMER_USEC)
 target_link_libraries(ns_port_freertos PUBLIC nanostack_port_api)
 target_link_libraries(ns_port_freertos PRIVATE slc nanostack_eventloop)
 target_include_directories(ns_port_freertos PRIVATE ${NANOSTACK_DIR}/nanostack)
@@ -178,3 +181,11 @@ endfunction()
 
 add_wisun_image(wisun_br br nanostack_br_fw)
 add_wisun_image(wisun_rn rn nanostack_rn_fw)
+# FAN 1.1 LFN (GS8 stage 6, HW8): the router program as an LFN, sleeping in
+# EM2 between its windows
+add_wisun_image(wisun_lfn rn nanostack_rn_fw)
+target_compile_definitions(wisun_lfn PRIVATE APP_ROLE_LFN=1)
+if(FW_LFN_PARENT)
+    target_compile_definitions(wisun_br PRIVATE APP_LFN_PARENT=1)
+    message(STATUS "FW_LFN_PARENT=ON: the border router runs FAN 1.1 with LFN parenting")
+endif()

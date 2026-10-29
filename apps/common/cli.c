@@ -3,7 +3,7 @@
  * the stack task (port poll hook), so commands call the stack directly.
  *
  *   status [-v]           join state, PAN, parent, addresses (+ radio/port stats)
- *   ping <ipv6> [n] [sz]  ICMPv6 echo
+ *   ping <ipv6> [n] [sz] [ms]  ICMPv6 echo, a request every ms (1000)
  *   udp <ipv6> <text>     UDP datagram to port 1234 (peer answers "ack:...")
  *   heap                  heap statistics
  *   tasks                 FreeRTOS task stack high-water marks
@@ -49,7 +49,7 @@ static bool parse_ipv6(const char *s, uint8_t out[16])
 static void cmd_help(void)
 {
     ns_port_console_printf(
-        "commands: status [-v] | ping <ipv6> [count] [size] | udp <ipv6> <text> | heap | tasks |\r\n"
+        "commands: status [-v] | ping <ipv6> [count] [size] [interval ms] | udp <ipv6> <text> | heap | tasks |\r\n"
         "          trace <0-5> [groups] | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes");
 }
 
@@ -164,7 +164,7 @@ static void execute(char *s)
     } else if (!strcmp(argv[0], "ping") && argc >= 2) {
         if (!parse_ipv6(argv[1], addr)) {
             ns_port_console_printf("bad address\r\n");
-        } else if (ping_start(addr, argc > 2 ? atoi(argv[2]) : 4, argc > 3 ? atoi(argv[3]) : 16)) {
+        } else if (ping_start(addr, argc > 2 ? atoi(argv[2]) : 4, argc > 3 ? atoi(argv[3]) : 16, argc > 4 ? atoi(argv[4]) : 1000)) {
             ns_port_console_printf("ping busy\r\n");
         }
     } else if (!strcmp(argv[0], "udp") && argc >= 3) {
