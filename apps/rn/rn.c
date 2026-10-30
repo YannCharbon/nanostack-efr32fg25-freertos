@@ -66,6 +66,11 @@ void app_role_configure(void)
         if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
         tr_info("FAN 1.1 LFN");
     }
+#ifdef APP_TEST_MAC_ALLOW
+    node_test_mac_allow(APP_TEST_MAC_ALLOW);   /* FW_TEST_MAC_ALLOW: test only */
+#endif
+#elif defined(APP_LFN_PARENT)
+    node_lfn_parent_configure();   /* FW_RN_LFN_PARENT */
 #endif
 }
 

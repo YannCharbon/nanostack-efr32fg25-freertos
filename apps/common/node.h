@@ -14,6 +14,8 @@
 #define APP_EVENT_PING   0x41   /* next ping of a series */
 #define APP_EVENT_QUIET  0x42   /* LFN: traces down to ERROR (APP_LFN_QUIET_AFTER_S) */
 
+struct mac_api_s;
+
 struct node {
     int8_t ws_if;       /* Wi-SUN interface (ws0) */
     int8_t bh_if;       /* BR backhaul (bh0), -1 on RN */
@@ -24,6 +26,7 @@ struct node {
     uint32_t ready_count;          /* ARM_NWK_BOOTSTRAP_READY seen */
     uint32_t boot_ms;
     uint32_t ready_ms;             /* first BOOTSTRAP_READY, ms since boot */
+    struct mac_api_s *mac;         /* the in-process MAC (MLME requests) */
 };
 extern struct node g_node;
 
@@ -53,5 +56,11 @@ void ping_on_timer(void);
 void cli_init(void);
 void cli_poll(void);
 void fault_report_previous(void);   /* apps/common/fault.c */
+/* FAN 1.1 with LFN parenting (FW_LFN_PARENT, FW_RN_LFN_PARENT), from
+ * app_role_configure() */
+void node_lfn_parent_configure(void);
+/* Test only (FW_TEST_MAC_ALLOW): drop every frame whose source is not the
+ * given EUI-64 (16 hex digits), with the MAC's link-quality filter */
+void node_test_mac_allow(const char *eui64_hex);
 
 #endif

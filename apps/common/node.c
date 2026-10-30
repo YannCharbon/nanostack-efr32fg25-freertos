@@ -28,6 +28,7 @@
 #include "nanostack/mac/mac_api.h"
 #include "nanostack/mac/sw_mac.h"
 #include "nanostack/mac/fhss_config.h"
+#include "nanostack/mac/mlme.h"
 #include "nanostack/net_interface.h"
 #include "nanostack/ws_management_api.h"
 #include "6lowpan/ws/ws_common_defines.h"   /* WS_FHSS_*_INTERVAL defaults */
@@ -156,6 +157,52 @@ static void app_tasklet(arm_event_t *ev)
     }
 }
 
+void node_lfn_parent_configure(void)
+{
+    ws_lfn_settings_t lfn;
+    int ret;
+
+    /* The LFN settings' defaults (the stack's docs/LFN_STACK.md §5). A router
+     * parents LFNs once it is operational and holds an LGTK (§9). */
+    ret = ws_management_fan_version_set(g_node.ws_if, 2 /* FAN 1.1 (1: FAN 1.0) */);
+    if (ret) tr_warn("ws_management_fan_version_set: %d", ret);
+    ws_management_lfn_settings_defaults(&lfn);
+    ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
+    if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
+    ret = ws_management_lfn_parent_set(g_node.ws_if, true);
+    if (ret) tr_warn("ws_management_lfn_parent_set: %d", ret);
+    tr_info("FAN 1.1, LFN parenting on");
+}
+
+void node_test_mac_allow(const char *eui64_hex)
+{
+    uint8_t eui64[8];
+    mlme_set_t req = { 0 };
+    mlme_request_mac_filter_start_t start = { .lqi_m = 0, .lqi_add = 0, .dbm_m = 0, .dbm_add = 0 };
+    mlme_request_mac_filter_add_long_t allow = { .lqi_m = 0x100, .lqi_add = 0, .dbm_m = 0x100, .dbm_add = 0 };
+
+    for (int i = 0; i < 8; i++) {
+        unsigned v;
+        if (strlen(eui64_hex) != 16 || sscanf(eui64_hex + 2 * i, "%2x", &v) != 1) {
+            tr_err("FW_TEST_MAC_ALLOW: '%s' is not 16 hex digits, no filter", eui64_hex);
+            return;
+        }
+        eui64[i] = v;
+    }
+    /* Default: every source blocked (MAC_FILTER_BLOCKED); this EUI-64 passes
+     * unchanged (MAC_FILTER_ALLOWED). Frames without a source address pass. */
+    req.attr = macFilterStart;
+    req.value_pointer = &start;
+    req.value_size = sizeof(start);
+    g_node.mac->mlme_req(g_node.mac, MLME_SET, &req);
+    memcpy(allow.mac64, eui64, 8);
+    req.attr = macFilterAddLong;
+    req.value_pointer = &allow;
+    req.value_size = sizeof(allow);
+    g_node.mac->mlme_req(g_node.mac, MLME_SET, &req);
+    tr_warn("TEST MODE: frames accepted only from %s (FW_TEST_MAC_ALLOW)", trace_array(eui64, 8));
+}
+
 void node_print_status(bool verbose)
 {
     ws_stack_info_t info;
@@ -275,6 +322,7 @@ static void stack_task(void *arg)
     }
     mac = ns_sw_mac_create(g_node.rf_id, &storage_sizes);
     configASSERT(mac);
+    g_node.mac = mac;
     if (net_init_core()) {
         tr_err("net_init_core");
         configASSERT(0);

@@ -585,6 +585,66 @@ cmake --build build/fw-lfn --target wisun_br wisun_lfn
 
 **Found on the way.** The first image faulted during EAPOL (an unaligned access in SHA-1, then a bus fault in the MAC's IE copy). Both were heap corruption from a 7-byte overflow in the stack's 4-way handshake message 2 for LFNs; AddressSanitizer in the emulator found it and a DHCPv6 relay stack-scope error (the stack's `docs/LFN_STACK.md` §10).
 
+### An LFN under a router on the kits (2026-10-30)
+
+Three kits: border router – FFN router – LFN, EU mode 3. The stack side is the stack's `docs/LFN_STACK.md` §9 (routers as LFN parents).
+
+**Build options.**
+
+| Option | Image | Effect |
+| --- | --- | --- |
+| `FW_LFN_PARENT=ON` | `wisun_br` | FAN 1.1, LFN parenting, 7-entry MAC key table (above) |
+| `FW_RN_LFN_PARENT=ON` | `wisun_rn` | The same for the router: FAN 1.1, the LFN settings' defaults, `ws_management_lfn_parent_set()`, 7-entry key table. The router parents LFNs once it is operational and holds an LGTK. Its border router needs `FW_LFN_PARENT` |
+| `FW_TEST_MAC_ALLOW=<EUI-64>` | `wisun_lfn` | **Test only.** The LFN accepts frames only from this EUI-64 (16 hex digits, no separators); every other source is dropped in the MAC before the stack sees it. Empty (default): off. Configure prints a warning and the LFN logs `TEST MODE` at boot |
+
+```bash
+cmake --preset fw-mode3 -B build/fw-mesh -DFW_LFN_PARENT=ON -DFW_RN_LFN_PARENT=ON \
+      -DFW_TEST_MAC_ALLOW=b43522fffe982348      # the router kit's EUI-64
+cmake --build build/fw-mesh --target wisun_br wisun_rn wisun_lfn
+```
+
+**Forcing the router as parent.** With the three boards side by side, the LFN hears the border router well and chooses it (routing cost 0). `FW_TEST_MAC_ALLOW` makes the router the only parent the LFN can hear. It uses the MAC's link-quality filter (`mac_filter_start()` with every source blocked, `mac_filter_add_long()` with the router allowed, through MLME-SET from `node_test_mac_allow()` in `apps/common/node.c`): no stack change, and nothing of it in the other images or without the option. The LFN still receives the border router's frames on the air; the filter drops them after reception (they can still hold a window open). An RF attenuator or more distance between the kits is the alternative without a test build.
+
+**Kit EUI-64s** (the unique ID in `commander device info`): border router kit 440240046 `b4:35:22:ff:fe:98:23:91`, LFN kit 440235509 `b4:35:22:ff:fe:98:2e:a6`, router kit 440235475 (BRD4270B) `b4:35:22:ff:fe:98:23:48`.
+
+**BRD4270B with the EU configuration.** The BRD4270B (902–928 MHz matching) has the same SoC as the BRD4271A (EFR32FG25B222F1920IM56). The EU images built for `brd4271a` run on it unchanged: the two generated SDK trees differ only in the radio configuration (band), the board name and the default HFXO CTUNE (92 and 93), and that default is not used because `SL_CLOCK_MANAGER_CTUNE_MFG_HFXO_EN` takes the board's factory value. No board-specific build is needed for running the EU band on a BRD4270B, and `FW_BOARD=brd4270b` stays the NA variant. Link quality with the boards side by side, EU mode 3, +10 dBm, as reported by the stack (`rsl_in`/`rsl_out`):
+- BRD4270B router ↔ BRD4271A LFN: −16 dBm in, −15 to −16 dBm out (LPA heard at −16 dBm), 12 boots;
+- BRD4270B router ↔ BRD4271A border router: −26 to −28 dBm in, −27 to −29 dBm out, 12 boots.
+
+Two BRD4271A kits measured −13 to −16 dBm at the same distance; the distances between the three kits were not measured, so the BRD4270B's loss at 868 MHz is not isolated.
+
+**The AEM of the BRD4270B kit (440235475) does not see the radio.** With our router image (an FFN, receiving continuously), it reads 1.25 mA, flat at 10 kHz (1.11–1.38 mA over 15 s, no TX peaks while the router answered pings); a router on a BRD4271A kit averages 8.1–12.3 mA depending on its TX share (HW5, above). It cannot be used for power measurements as is. LFN power was measured on kit 440235509.
+
+**Test.** `tests/hw/run_hw_mesh.sh <workdir> [windows] [window s]` with `BR_SN`, `RN_SN` and `LFN_SN`: cold boot of the border router and the router; once the router holds an LGTK, reset of the LFN; then border router → LFN pings, one every 6 s, and UDP; AEM windows on the LFN's kit; `REJOIN=1` resets the router afterwards, `REJOIN=2` the border router and the router.
+
+**Results** (2026-10-30; kits as above, EU mode 3, +10 dBm, boards side by side; LFN settings' defaults). Two sets of images: 9 boots with images built from the stack's working tree at 10:16 (`d8e0241`, possibly with part of the interoperability work committed later as `aded481`), then 3 boots with stack `c379ed0` (the rejoin fix below) and firmware with the options above:
+
+| Check | Result |
+| --- | --- |
+| The router gets an LGTK from the border router | 12/12 boots, 18–30 s after the router's reset (11 measured); the router is operational 70–83 s after its reset |
+| The LFN chooses the router | 12/12 (the only parent it can hear under `FW_TEST_MAC_ALLOW`) |
+| The LFN joins through the router: EAPOL target the router, EAP-TLS, LGTK, DHCPv6 through the router's relay, address registered, the border router's routing table lists the LFN under the router | 12/12, operational 29–74 s after the LFN's reset (median 34 s) |
+| Border router → LFN pings, one every 6 s | 109/110 answered in 11 boots; round trips 0.12–8.6 s in 10 boots, 1.4–13.1 s in one (requests queued behind each other at the router, which sends an LFN one frame per listen interval) |
+| UDP border router → LFN and the LFN's acknowledgement back | 11/11 |
+| LFN idle current, AEM, 60 s windows | **23.7–25.4 µA** (16 windows in 8 boots: 23.8–24.8 µA in 10 with the first images, 23.7–25.4 µA in 6 with `c379ed0`) |
+| Border router and router reset, the LFN left running (`REJOIN=2`) | with `c379ed0`, 3/3: the LFN sent its LPAS 349–373 s after the reset (parent lost), authenticated again through the router (EAP-TLS finished 387–410 s after the reset) and answered pings again within 409–442 s (pings every 34 s). With the first images, 0/1 in 20 min (below) |
+| Router reset alone (`REJOIN=1`) | 0/1: the router did not rejoin in 18 min (frame counters, below) |
+| Faults | none |
+
+One boot had no traffic check (the test script read the LFN's address too early; fixed).
+
+**Comparison.**
+- Under the border router (above): 24.9–26.9 µA (18 windows, 2026-10-29). Under the router: 23.7–25.4 µA. The LFN's own schedule is the same (listen interval 5 s, broadcast slots every 10 s, a sync frame every 50 s).
+- Emulator, `test_lfn_join.sh` with `MESH=1` (LFN_STACK.md §9): all checks pass in 3 seeds (rerun with `c379ed0`: LFN operational 117.6–128.9 s after a common start, LFN 46.1–47.3 µA with test traffic); an idle LFN under the border router 24.0–24.7 µA. On the kits the LFN is reset after the router has joined, so its 29–74 s is the LFN's own join.
+
+**Rejoin after a network restart: fixed in the stack.** With the first images, after the border router and the router were reset, the LFN found the router again (LPAS 339 s after the reset) but rejoined with its old keys, without EAPOL, as after a parent loss: the restarted network could not read its LPCS, no LPC came, and it lost the parent again about 390 s later. The stack now ties an LFN's keys to the PAN ID of the network that gave them, and drops them after 4 LPCS without an LPC (`c379ed0`, the stack's `docs/LFN_STACK.md` §10). The emulator's parent-loss test (same PAN, keys still valid) still rejoins without EAPOL.
+
+**Router reset alone: frame counters.** A router reset while the border router keeps running did not rejoin: it authenticated and received its GTK and LGTK, but its DHCPv6 requests got no reply for 18 min (join state 4). The firmware does not store frame counters (no persistence, [Known gaps](#known-gaps--todo)), so the rebooted router counts from 0 under the same GTK, and the border router, which keeps its neighbour entry with the old counter, most probably drops its secured frames as replays (`MLME_COUNTER_ERROR` in the MAC, a debug trace that was not visible here). Not confirmed; NVM frame counters are needed in any case.
+
+**Observed.** Each time the LFN registers, the router sends a DAO for the LFN's address, and its DAO-ACK re-runs the stack's bootstrap state machine, which reports `ARM_NWK_BOOTSTRAP_READY` to the application again (inherited Nanostack behaviour in `ws_bootstrap.c`, `RPL_EVENT_DAO_DONE`). Harmless; the application counts it in `ready=… times`.
+
+**Neighbouring devices.** In every run, four devices with locally administered EUI-64s (`4a:c0:d9:7b:ad:e4:c9:49`, `4e:be:f3:ea:a5:ca:ce:57`, `82:bd:02:4f:3c:65:54:7b`, `f6:70:10:d3:5f:06:6f:4f`) tried to authenticate with our border router; about half of the attempts ended with a TLS error, and none of them appeared in its routing table. They are not ours and were not identified. Each EAP-TLS blocks the border router's stack task for up to 0.9 s (ECC).
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority
@@ -712,7 +772,7 @@ cmake --build build/fw-lfn --target wisun_br wisun_lfn
   - scheduled TX, CCA, Enh-ACK timing, FHSS hopping and synchronisation;
   - EAP-TLS with the SE TRNG, DHCPv6, RPL, ping, UDP;
   - IRQ priorities (no boot warning), stack sizes, VCOM.
-- **LFN (FAN 1.1):** see [FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29). Not done: our LFN against Silicon Labs' parent and our parent against Silicon Labs' LFN (black-box phases 2–3, which need the interoperability IEs LCP/FLUS); an LFN under a router on the kits (two kits only); long runs; the LFN's console in EM2.
+- **LFN (FAN 1.1):** see [FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29). Not done: our LFN against Silicon Labs' parent and our parent against Silicon Labs' LFN (black-box phases 2–3, which need the interoperability IEs LCP/FLUS); long runs; the LFN's console in EM2. An LFN under a router runs on three kits, see [An LFN under a router on the kits](#an-lfn-under-a-router-on-the-kits-2026-10-30).
 - **Still unverified:**
   - the NA/BRD4270B variant on hardware;
   - more than two nodes or multi-hop;
@@ -738,7 +798,12 @@ cmake --build build/fw-lfn --target wisun_br wisun_lfn
   a 16-channel mask the twin RN never got its unicast EAPOL acknowledged
   ("channels: BC 129 UC 16"). Experimental; to investigate in the stack.
 - **No persistence** (NVM3 `ns_file_*` callbacks: TODO). Keys and frame counters
-  are lost on reboot, and every boot is a full join.
+  are lost on reboot, and every boot is a full join. A router reset while its
+  border router keeps running does not rejoin (seen on the three kits): it
+  restarts its frame counter at 0 under the same GTK, and the border router,
+  which keeps its neighbour entry, most probably rejects its secured frames
+  as replays (`MLME_COUNTER_ERROR`); its DHCPv6 requests got no reply for
+  18 min.
 - **No real backhaul** (null `bh0`). SLIP-over-UART is Phase 2.
 - **Phase B** (higher-priority MAC context) is not implemented. Measure
   `ack_lat_max` first.
