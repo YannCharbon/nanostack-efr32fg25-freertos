@@ -675,6 +675,22 @@ Build options and defines added for these tests (all off by default):
 | Our LFN under the embedded border router | 5 of 5, 27.6–32.6 s | 8 of 8 down, 5 of 5 up | — |
 | Silicon Labs' LFN under our border router | 8 of 8, 48.6–113.7 s | 8 of 8 each way | 40.2–43.4 µA (49.0 µA under its own border router) |
 
+## Keys and frame counters in flash (FW_FLASH_FS, default ON)
+
+The stack's file API (`ns_file_system`) is backed by a small log-structured store in the last two pages of the main flash (`port/freertos/flash_fs.c`, 2 × 8 kB): the security keys, the frame counters and the network information (and, on a border router parenting LFNs, its LGTKs) survive a reset. A reset LFN or router rejoins without a full EAP-TLS. The CLI command `nvm erase` forgets them and resets. A page left by another program (for example Silicon Labs' NVM3) is erased at start.
+
+Measured on the kits (EU mode 1a, our border router and our LFN, 2026-11-02): 6 of 6 LFN resets rejoined in 12.9–32.8 s without EAP-TLS (138–233 s before, through EAP-TLS); after a border router reset the LFN was operational again 154 s later without EAP-TLS (before: 375 s to declare the parent lost, then a rejoin through EAP-TLS).
+
+## LFN current against listen interval (2026-11-02)
+
+Our LFN under our border router, EU mode 1a, +10 dBm, LFN broadcast interval 10 s, sync period 5; one join per point, 10 AEM windows (60 s; 120 s for 30 and 60 s), the last 8 counted:
+
+| Listen interval | 1 s | 2 s | 5 s | 10 s | 30 s | 60 s |
+| --- | --- | --- | --- | --- | --- | --- |
+| Idle current, range (mean) | 66.8–70.8 µA (69.1) | 41.3–44.5 µA (42.8) | 25.8–27.3 µA (26.3) | 20.4–21.2 µA (20.8) | 17.3–17.9 µA (17.6) | 16.3–17.2 µA (16.7) |
+
+Above about 10 s the LFN broadcast slots (every 10 s), the sync frame (every 50 s) and the deep-sleep floor dominate.
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority

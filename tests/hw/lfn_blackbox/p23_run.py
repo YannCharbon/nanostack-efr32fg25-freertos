@@ -26,7 +26,7 @@ import time
 import p23lib as L
 import wsbrd as W
 
-ADDR_LFN = {"p2w": r"(fd00:5eed:[0-9a-f:]+)", "p2e": r"(f[cd][0-9a-f]{2}:[0-9a-f:]+)", "p3": r"(fd12:3456:[0-9a-f:]+)"}
+ADDR_LFN = {"p2w": r"(fd00:5eed:[0-9a-f:]+)", "p2e": r"(f[cd][0-9a-f]{2}:[0-9a-f:]+)", "p3": r"(fd12:3456:[0-9a-f:]+)", "ours": r"(fd12:3456:[0-9a-f:]+)"}
 
 
 # fd12:3456::/64 + the kit's EUI-64 interface ID (phase 1: kit A b4:35:22:ff:fe:98:2e:a6, kit B ...:23:91)
@@ -227,7 +227,7 @@ class Run:
     def aem(self, n):
         # silink must not hold kit A; the LFN's console stays open
         for i in range(n):
-            ua, out = L.aem_measure(L.A, 60)
+            ua, out = L.aem_measure(L.A, self.a.aem_s)
             self.res["aem_ua"].append(ua)
             print(f"  AEM window {i}: {ua} uA", flush=True)
             self.save()
@@ -255,6 +255,8 @@ class Run:
             self.aem(a.aem)
         if a.rotate:
             self.rotate()
+        for i in range(a.lfn_resets):
+            self.lfn_reset(i)
         if a.restart:
             self.restart()
         self.save()
@@ -279,6 +281,15 @@ class Run:
             self.lfn_pings(p_lfn, t0)
         self.save()
 
+    def lfn_reset(self, i):
+        """Our LFN reset alone (its parent keeps running): rejoin time, and whether EAP-TLS ran again"""
+        time.sleep(30)
+        pb = L.size(self.d, "br")
+        dt, pos = self.lfn_join(self.a.timeout)
+        eap = "EAP-TLS init" in L.text(self.d, "br", pb) if self.a.mode in ("ours", "p3") else None
+        self.res.setdefault("lfn_resets", []).append({"i": i, "rejoin_s": dt, "eap_tls": eap})
+        self.ev(f"LFN reset {i}: joined again after {dt}, EAP-TLS {eap}")
+
     def restart(self):
         """Parent restart: the LFN must declare it lost (1.5 x maintain_parent_time sync periods) and rejoin."""
         p = L.size(self.d, "lfn")
@@ -290,23 +301,25 @@ class Run:
         else:
             # kit B's target supply bypasses the AEM switch (phase 1 §1.1): a reset
             self.parent_start()
-        pat = r"Connected: \d+ s|\[Connected" if self.a.mode == "p3" else r"ARM_NWK_BOOTSTRAP_READY"
-        lost = L.wait(self.d, "lfn", r"parent .* lost|Connection lost|[Dd]isconnected|Join state 1: Select PAN", p, 900)
+        pat = r"Connected: \d+ s|\[Connected" if self.a.mode == "p3" else r"ARM_NWK_BOOTSTRAP_READY|ready=1 \("
+        lost = L.wait(self.d, "lfn", r"parent .* lost|Connection lost|[Dd]isconnected|Join state 1: Select PAN", p, 420 if self.a.mode == "ours" else 900)
         self.ev(f"LFN lost its parent: {lost[1] if lost else None}")
-        back = L.wait(self.d, "lfn", pat, p, 900) if lost else None
+        back = L.wait(self.d, "lfn", pat, p, 900)
         self.ev(f"LFN joined again: {back[1] if back else None}")
         self.res["restart"] = {"t_lost": lost[1] if lost else None, "t_back": back[1] if back else None}
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["p2w", "p2e", "p3"])
+    ap.add_argument("mode", choices=["p2w", "p2e", "p3", "ours"])
+    ap.add_argument("--aem-s", type=int, default=60)
     ap.add_argument("dir")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--pings", type=int, default=0)
     ap.add_argument("--mc", action="store_true")
     ap.add_argument("--aem", type=int, default=0)
     ap.add_argument("--restart", action="store_true")
+    ap.add_argument("--lfn-resets", type=int, default=0)
     ap.add_argument("--restart-off", type=int, default=5)
     ap.add_argument("--rotate", action="store_true")
     ap.add_argument("--rotate-wait", type=int, default=600)

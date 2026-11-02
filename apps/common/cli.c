@@ -210,6 +210,13 @@ static void execute(char *s)
 #endif
     } else if (!strcmp(argv[0], "reset")) {
         NVIC_SystemReset();
+#ifdef FW_FLASH_FS
+    } else if (!strcmp(argv[0], "nvm") && argc == 2 && !strcmp(argv[1], "erase")) {
+        /* Forget the stored keys and frame counters, then reset */
+        extern int flash_fs_init(bool erase);
+        flash_fs_init(true);
+        NVIC_SystemReset();
+#endif
     } else if (!app_role_cli(argc, argv)) {
         ns_port_console_printf("unknown command, try 'help'\r\n");
     }

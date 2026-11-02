@@ -331,6 +331,12 @@ static void stack_task(void *arg)
     mbed_trace_include_filters_set(APP_TRACE_DEBUG_GROUPS);
 #endif
     fault_report_previous();
+#ifdef FW_FLASH_FS
+    {
+        extern int flash_fs_init(bool erase);
+        flash_fs_init(false);
+    }
+#endif
 
 #ifndef APP_ROLE_LFN
     /* Always-on FFN: the radio receives continuously, never go below EM1. */
