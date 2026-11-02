@@ -120,7 +120,14 @@ static void icmp_cb(void *arg)
        window, so it may come after the next request has gone */
     uint16_t seq = common_read_16_bit(buf + 6);
     if (common_read_16_bit(buf + 4) != PING_ID || !ping.active || !seq || seq > ping.seq ||
-            seq > PING_MAX_COUNT || (ping.answered & (1ull << (seq - 1)))) {
+            seq > PING_MAX_COUNT) {
+        return;
+    }
+    if (ping.answered & (1ull << (seq - 1))) {
+        /* Another reply to the same request (a multicast ping): shown, not counted */
+        ip6tos(src.address, a);
+        ns_port_console_printf("%d bytes from %s: icmp_seq=%u time=%lu ms (DUP!)\r\n", n - 8, a, seq,
+                               (unsigned long)((RAIL_GetTime() - ping.sent_at[seq - 1]) / 1000u));
         return;
     }
     ping.answered |= 1ull << (seq - 1);

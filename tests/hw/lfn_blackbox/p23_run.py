@@ -182,7 +182,7 @@ class Run:
         """Our LFN's own periodic pings to its parent (APP_LFN_PING_PERIOD_S: its console cannot
         receive in EM2): one result line per ping in its log."""
         txt = L.text(self.d, "lfn", start)
-        for m in re.finditer(r"^(\d+\.\d+) --- (\S+) ping statistics: (\d+) transmitted, (\d+) received[^\n]*?(?:= (\d+)/)?", txt, re.M):
+        for m in re.finditer(r"^(\d+\.\d+) --- (\S+) ping statistics: (\d+) transmitted, (\d+) received(?:[^\n=]*= (\d+)/)?", txt, re.M):
             rtt = int(m.group(5)) / 1000 if m.group(5) else None
             ok = int(m.group(4)) > 0
             self.res["pings"].append({"way": "up", "rtt_s": rtt if ok else None, "t": float(m.group(1)), "dst": m.group(2)})
@@ -282,17 +282,16 @@ class Run:
     def restart(self):
         """Parent restart: the LFN must declare it lost (1.5 x maintain_parent_time sync periods) and rejoin."""
         p = L.size(self.d, "lfn")
-        self.parent_stop()
-        self.ev("parent stopped")
-        time.sleep(self.a.restart_off)
         if self.a.mode == "p2w":
+            self.parent_stop()
+            self.ev("parent stopped")
+            time.sleep(self.a.restart_off)
             self.parent_start(fresh=False)
         else:
-            L.commander("adapter", "power", "-s", L.B, "on")
-            time.sleep(1)
+            # kit B's target supply bypasses the AEM switch (phase 1 §1.1): a reset
             self.parent_start()
         pat = r"Connected: \d+ s|\[Connected" if self.a.mode == "p3" else r"ARM_NWK_BOOTSTRAP_READY"
-        lost = L.wait(self.d, "lfn", r"parent .* lost|Connection lost|[Dd]isconnected|Join state: Select PAN", p, 900)
+        lost = L.wait(self.d, "lfn", r"parent .* lost|Connection lost|[Dd]isconnected|Join state 1: Select PAN", p, 900)
         self.ev(f"LFN lost its parent: {lost[1] if lost else None}")
         back = L.wait(self.d, "lfn", pat, p, 900) if lost else None
         self.ev(f"LFN joined again: {back[1] if back else None}")
