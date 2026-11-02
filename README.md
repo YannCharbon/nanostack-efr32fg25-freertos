@@ -645,6 +645,36 @@ One boot had no traffic check (the test script read the LFN's address too early;
 
 **Neighbouring devices.** In every run, four devices with locally administered EUI-64s (`4a:c0:d9:7b:ad:e4:c9:49`, `4e:be:f3:ea:a5:ca:ce:57`, `82:bd:02:4f:3c:65:54:7b`, `f6:70:10:d3:5f:06:6f:4f`) tried to authenticate with our border router; about half of the attempts ended with a TLS error, and none of them appeared in its routing table. They are not ours and were not identified. Each EAP-TLS blocks the border router's stack task for up to 0.9 s (ECC).
 
+## Interoperability with Silicon Labs' Wi-SUN stack (LFN black-box phases 2–3, 2026-10-30, 11-02)
+
+Our LFN under Silicon Labs' parents (`wsbrd` + `wisun_rcp`, and the embedded border router `wisun_soc_brcli`), and Silicon Labs' LFN (`wisun_soc_lfn_cli`) under our border router, on the FG25 kits. Results: root repo `documents/pre-study/investigation/LFN_BlackBox_Phase2_3_Results.md`; the stack changes: the stack's `docs/LFN_STACK.md` §2 and `docs/LFN_MAC.md` §2.
+
+**Build** (Silicon Labs' EU PHY: PHY mode 1, channel plan 32, on the mode 1a radio configuration):
+
+```bash
+cmake --preset fw -B build/fw-interop -DFW_LFN_PARENT=ON \
+  '-DAPP_EXTRA_DEFS=APP_WS_PHY_MODE_ID=1;APP_WS_CHAN_PLAN_ID=32;APP_NETWORK_NAME="hw5lfn"'
+cmake --build build/fw-interop --target wisun_br wisun_lfn
+```
+
+Build options and defines added for these tests (all off by default):
+- `APP_WS_PHY_MODE_ID`, `APP_WS_CHAN_PLAN_ID`: a FAN 1.1 PHY configuration (`ws_management_domain_configuration_set()`).
+- `FW_PTI`: packet trace on the debug channel (silink), as Silicon Labs' samples on BRD4271A (PD3/PD4, 3.2 MHz).
+- `APP_LFN_PING_PERIOD_S`: the LFN pings its parent's global address periodically (its console cannot receive in EM2).
+- `APP_TRACE_DEBUG_GROUPS`: debug traces for a list of trace groups.
+- `APP_LFN_LISTEN_INTERVAL_MS`: the LFN's proposed listen interval.
+- Border router CLI `lgtk rotate` (with `FW_LFN_PARENT`): the next LGTK installed now, activated after the activation guard. `ping` prints every reply to a multicast request (marked DUP, not counted).
+
+**Tools** (`tests/hw/lfn_blackbox/`): `p23_run.py` runs the scenarios (`p2w`: our LFN under `wsbrd`; `p2e`: under the embedded border router; `p3`: their LFN under our border router; `ours`: our LFN under our border router), with `p23lib.py` (kits by J-Link serial number, consoles, flashing, AEM); `chan_check.py` checks the channel and LTO rules against PTI captures.
+
+**Results** (kit 440235509 the LFN with the AEM, kit 440240046 the parent):
+
+| Case | Joins | Pings | Idle current of the LFN |
+| --- | --- | --- | --- |
+| Our LFN under `wsbrd` | 10 of 10, 38.7–44.0 s | 10 of 10 down, all up | 24.3–25.4 µA |
+| Our LFN under the embedded border router | 5 of 5, 27.6–32.6 s | 8 of 8 down, 5 of 5 up | — |
+| Silicon Labs' LFN under our border router | 8 of 8, 48.6–113.7 s | 8 of 8 each way | 40.2–43.4 µA (49.0 µA under its own border router) |
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority

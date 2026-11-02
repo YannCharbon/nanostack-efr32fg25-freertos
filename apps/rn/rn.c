@@ -62,6 +62,10 @@ void app_role_configure(void)
         ret = ws_management_fan_version_set(g_node.ws_if, 2 /* FAN 1.1 (1: FAN 1.0) */);
         if (ret) tr_warn("ws_management_fan_version_set: %d", ret);
         ws_management_lfn_settings_defaults(&lfn);
+#ifdef APP_LFN_LISTEN_INTERVAL_MS
+        /* Proposed listen interval (LUS-IE); the parent may adjust it (LTO-IE) */
+        lfn.listen_interval_ms = APP_LFN_LISTEN_INTERVAL_MS;
+#endif
         ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
         if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
         tr_info("FAN 1.1 LFN");
