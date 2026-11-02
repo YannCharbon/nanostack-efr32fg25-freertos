@@ -50,7 +50,7 @@ static void cmd_help(void)
 {
     ns_port_console_printf(
         "commands: status [-v] | ping <ipv6> [count] [size] [interval ms] | udp <ipv6> <text> | heap | tasks |\r\n"
-        "          trace <0-5> [groups] | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes");
+        "          trace <0-5> [groups] | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes | lgtk rotate");
 }
 
 static void cmd_heap(void)

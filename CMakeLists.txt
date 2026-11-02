@@ -14,6 +14,7 @@ set(SISDK_DIR "${CMAKE_SOURCE_DIR}/../.deps/simplicity_sdk" CACHE PATH
 set(MBEDTLS_DIR "${CMAKE_SOURCE_DIR}/../.deps/mbedtls-3.0.0" CACHE PATH
     "Mbed TLS v3.0.0 source tree")
 set(APP_EXTRA_DEFS "" CACHE STRING "Extra compile definitions for the apps (app_config.h overrides)")
+option(FW_PTI "Packet trace (PTI) on the debug channel for silink captures (black-box phases 2-3); test builds only" OFF)
 option(FW_POWER_STATS "Power/activity statistics for AEM measurements (HW5): EM times, cycles per wake, radio states, GPIO PC1" OFF)
 option(FW_LFN_PARENT "Border router: Wi-SUN FAN 1.1 with LFN parenting (GS8 stage 6); the wisun_lfn image needs it" OFF)
 option(FW_RN_LFN_PARENT "Router (wisun_rn): Wi-SUN FAN 1.1 with LFN parenting; its border router needs FW_LFN_PARENT" OFF)
@@ -114,6 +115,10 @@ add_library(ns_port_freertos STATIC
 )
 if(NOT FW_RUNLOOP_SAFETY_MS STREQUAL "")
     add_compile_definitions(FW_RUNLOOP_SAFETY_MS=${FW_RUNLOOP_SAFETY_MS})
+endif()
+if(FW_PTI)
+    add_compile_definitions(FW_PTI=1)
+    message(STATUS "FW_PTI=ON: packet trace on the debug channel")
 endif()
 if(FW_POWER_STATS)
     target_sources(ns_port_freertos PRIVATE port/freertos/power_stats.c)

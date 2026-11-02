@@ -911,6 +911,21 @@ void rail_phy_hw_init(void)
 
     rh = RAIL_Init(&rail_cfg, NULL);
     configASSERT(rh != NULL);
+#ifdef FW_PTI
+    /* Packet trace (PTI) on the BRD4001A debug channel, as Silicon Labs'
+     * samples on BRD4271A (sl_rail_util_pti_config.h: UART at 3.2 MHz,
+     * DOUT PD3, DFRAME PD4), so silink captures our frames too (black-box
+     * phases 2-3). Test builds only: it costs current during radio activity. */
+    {
+        const RAIL_PtiConfig_t pti = {
+            .mode = RAIL_PTI_MODE_UART, .baud = 3200000,
+            .doutPort = 3, .doutPin = 3, .dframePort = 3, .dframePin = 4,
+        };
+        RAIL_ConfigPti(RAIL_EFR32_HANDLE, &pti);
+        RAIL_SetPtiProtocol(rh, RAIL_PTI_PROTOCOL_802154);
+        RAIL_EnablePti(rh, true);
+    }
+#endif
     RAIL_ConfigCal(rh, RAIL_CAL_ALL);
     RAIL_ConfigChannels(rh, channelConfigs[0], NULL);
     rail_ch_offset = channelConfigs[0]->configs[0].channelNumberStart;

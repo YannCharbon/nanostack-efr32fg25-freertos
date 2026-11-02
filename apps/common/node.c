@@ -77,6 +77,14 @@ static void configure_ws(void)
     if (ret) tr_warn("ws_management_node_init: %d", ret);
     ret = ws_management_regulatory_domain_set(g_node.ws_if, APP_WS_DOMAIN, APP_WS_CLASS, APP_WS_MODE);
     if (ret) tr_warn("ws_management_regulatory_domain_set: %d", ret);
+#if defined APP_WS_PHY_MODE_ID && defined APP_WS_CHAN_PLAN_ID
+    /* A FAN 1.1 PHY configuration (PHY mode ID, channel plan ID), as Silicon
+     * Labs' nodes use (e.g. EU PHY mode 1, channel plan 32 on the 1a radio
+     * configuration: the same 69 channels, with the plan's regulatory
+     * exclusions). Black-box phases 2-3. */
+    ret = ws_management_domain_configuration_set(g_node.ws_if, APP_WS_DOMAIN, APP_WS_PHY_MODE_ID, APP_WS_CHAN_PLAN_ID);
+    if (ret) tr_warn("ws_management_domain_configuration_set: %d", ret);
+#endif
     ret = ws_management_fhss_unicast_channel_function_configure(g_node.ws_if, WS_DH1CF, 0xffff,
                                                                 WS_FHSS_UC_DWELL_INTERVAL);
     if (ret) tr_warn("uc channel function: %d", ret);
@@ -99,6 +107,27 @@ static void configure_ws(void)
     ret = arm_nwk_set_tx_output_power(g_node.ws_if, APP_TX_POWER_PERCENT);
     if (ret) tr_warn("arm_nwk_set_tx_output_power: %d", ret);
 }
+
+#ifdef APP_ROLE_LFN
+/* Test traffic from the LFN (its console cannot receive while it sleeps in
+ * EM2): one echo request to its parent's global address, the LFN's prefix
+ * with the parent's interface ID; the result is printed as for the ping
+ * command. */
+static void lfn_ping_parent(void)
+{
+    ws_stack_info_t info;
+    uint8_t gua[16];
+
+    if (!g_node.bootstrap_ready || ws_stack_info_get(g_node.ws_if, &info) ||
+            arm_net_address_get(g_node.ws_if, ADDR_IPV6_GP, gua)) {
+        return;
+    }
+    memcpy(gua + 8, info.parent + 8, 8);
+    if (ping_start(gua, 1, 32, 1000)) {
+        ns_port_console_printf("ping busy\r\n");
+    }
+}
+#endif
 
 static void app_tasklet(arm_event_t *ev)
 {
@@ -134,6 +163,11 @@ static void app_tasklet(arm_event_t *ev)
                     if (APP_LFN_QUIET_AFTER_S) {
                         eventOS_event_timer_request(0, APP_EVENT_QUIET, g_node.tasklet, APP_LFN_QUIET_AFTER_S * 1000u);
                     }
+                    static bool lfn_ping_armed;
+                    if (APP_LFN_PING_PERIOD_S && !lfn_ping_armed) {
+                        lfn_ping_armed = true;      // re-armed by each ping, from then on
+                        eventOS_event_timer_request(0, APP_EVENT_LFN_PING, g_node.tasklet, APP_LFN_PING_PERIOD_S * 1000u);
+                    }
 #endif
                 } else {
                     g_node.bootstrap_ready = false;
@@ -152,6 +186,12 @@ static void app_tasklet(arm_event_t *ev)
         case APP_EVENT_PING:
             ping_on_timer();
             break;
+#ifdef APP_ROLE_LFN
+        case APP_EVENT_LFN_PING:
+            lfn_ping_parent();
+            eventOS_event_timer_request(0, APP_EVENT_LFN_PING, g_node.tasklet, APP_LFN_PING_PERIOD_S * 1000u);
+            break;
+#endif
         default:
             break;
     }
@@ -285,6 +325,11 @@ static void stack_task(void *arg)
     mbed_trace_init();
     mbed_trace_print_function_set(ns_port_trace_write);
     mbed_trace_config_set(TRACE_ACTIVE_LEVEL_INFO);
+#ifdef APP_TRACE_DEBUG_GROUPS
+    /* Test builds: debug traces of these groups only (comma-separated) */
+    mbed_trace_config_set(TRACE_ACTIVE_LEVEL_ALL);
+    mbed_trace_include_filters_set(APP_TRACE_DEBUG_GROUPS);
+#endif
     fault_report_previous();
 
 #ifndef APP_ROLE_LFN

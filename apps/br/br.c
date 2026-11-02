@@ -188,5 +188,13 @@ bool app_role_cli(int argc, char **argv)
         print_nodes();
         return true;
     }
+#ifdef APP_LFN_PARENT
+    if (!strcmp(argv[0], "lgtk") && argc == 2 && !strcmp(argv[1], "rotate")) {
+        /* Install the next LGTK now; it is activated once the activation
+         * guard has passed (the stack's docs/LFN_STACK.md §8) */
+        ns_port_console_printf("lgtk rotate: %d\r\n", ws_management_lfn_lgtk_rotate(g_node.ws_if));
+        return true;
+    }
+#endif
     return false;
 }

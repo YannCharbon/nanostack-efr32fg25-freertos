@@ -13,6 +13,7 @@
 #define APP_EVENT_STATUS 0x40   /* periodic status print */
 #define APP_EVENT_PING   0x41   /* next ping of a series */
 #define APP_EVENT_QUIET  0x42   /* LFN: traces down to ERROR (APP_LFN_QUIET_AFTER_S) */
+#define APP_EVENT_LFN_PING 0x43 /* LFN: periodic ping to its parent's global address (APP_LFN_PING_PERIOD_S) */
 
 struct mac_api_s;
 

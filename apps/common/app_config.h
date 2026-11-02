@@ -109,6 +109,11 @@
 #ifndef APP_LFN_QUIET_AFTER_S
 #define APP_LFN_QUIET_AFTER_S 30
 #endif
+/* LFN test traffic: one echo request to its parent's global address every
+ * this many seconds once joined (0: none). Test builds only. */
+#ifndef APP_LFN_PING_PERIOD_S
+#define APP_LFN_PING_PERIOD_S 0
+#endif
 #ifdef APP_ROLE_LFN
 /* LFN: no periodic print, which would wake it and keep the UART busy */
 #define APP_STATUS_PERIOD_S 0
