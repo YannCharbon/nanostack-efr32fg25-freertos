@@ -11,10 +11,11 @@ import argparse
 import json
 import os
 import re
+import sys
 import time
 
 import wsbrd
-from s1_run import size, wait
+from s1_run import size, verdict, wait
 
 
 def last_lts(d, before):
@@ -38,6 +39,8 @@ def main():
     d = os.path.abspath(a.dir)
     jf = os.path.join(d, "s5_reps.json")
     res = json.load(open(jf)) if os.path.exists(jf) else []
+    n0 = len(res)
+    fails = []
     for rep in range(a.reps):
         time.sleep(a.idle_s)
         r = {"rep": len(res)}
@@ -50,6 +53,7 @@ def main():
         r["pcap"] = os.path.basename(pcap)
         if not r["t_br_started"]:
             print(f"rep {r['rep']}: wsbrd did not start (see wsbrd.log)", flush=True)
+            fails.append(f"rep {r['rep']}: wsbrd did not start")
             break
         m = wait(d, "lfn", r"\[Connection lost", pos, a.timeout)
         r["t_lost"] = time.time() if m else None
@@ -60,7 +64,9 @@ def main():
         f = lambda k: f"{r[k] - r['t_stop']:.1f}" if r.get(k) else "-"
         print(f"rep {r['rep']}: last LTS {f('t_last_lts')} s, lost +{f('t_lost')} s, connected +{f('t_connected')} s",
               flush=True)
+    fails += [f"rep {r['rep']}: LFN did not rejoin" for r in res[n0:] if not r.get("t_connected")]
+    return verdict(fails)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

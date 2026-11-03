@@ -78,7 +78,8 @@ def stop(d, who):
 def console(d, who, sn, baud=115200, rtscts=False):
     """Start logging kit sn to d/<who>.log, commands through d/<who>.fifo."""
     stop(d, who)
-    env = dict(os.environ, CONSOLE_BAUD=str(baud), CONSOLE_RTSCTS="1" if rtscts else "0")
+    env = dict(os.environ, CONSOLE_BAUD=str(baud), CONSOLE_RTSCTS="1" if rtscts else "0",
+               CONSOLE_APPEND="1")   # searches use offsets; a restarted console keeps the run's log
     pr = subprocess.Popen([sys.executable, CON, tty(sn), os.path.join(d, f"{who}.log"), os.path.join(d, f"{who}.fifo")],
                           env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     open(pidfile(d, who), "w").write(str(pr.pid))

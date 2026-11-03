@@ -14,9 +14,9 @@ tty_of() { readlink -f /dev/serial/by-id/*000$1-if00; }
 cmd=$1; dir=$2; mkdir -p "$dir"
 case $cmd in
 start)
-    CONSOLE_RTSCTS=1 CONSOLE_BAUD=115200 nohup python3 $CON "$(tty_of $BR_SN)" "$dir/br.log" "$dir/br.fifo" >/dev/null 2>&1 &
+    CONSOLE_APPEND=1 CONSOLE_RTSCTS=1 CONSOLE_BAUD=115200 nohup python3 $CON "$(tty_of $BR_SN)" "$dir/br.log" "$dir/br.fifo" >/dev/null 2>&1 &
     echo $! > "$dir/pids"
-    CONSOLE_RTSCTS=1 CONSOLE_BAUD=9600 nohup python3 $CON "$(tty_of $LFN_SN)" "$dir/lfn.log" "$dir/lfn.fifo" >/dev/null 2>&1 &
+    CONSOLE_APPEND=1 CONSOLE_RTSCTS=1 CONSOLE_BAUD=9600 nohup python3 $CON "$(tty_of $LFN_SN)" "$dir/lfn.log" "$dir/lfn.fifo" >/dev/null 2>&1 &
     echo $! >> "$dir/pids"
     if [ "${3:-}" = rtt ]; then
         nohup $T/rtt.sh $BR_SN "$dir/br_rtt.log" >/dev/null 2>&1 & echo $! >> "$dir/pids"

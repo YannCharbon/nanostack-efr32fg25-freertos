@@ -7,13 +7,20 @@ Phase 2, our LFN (wisun_lfn, kit A) under a Silicon Labs parent on kit B:
   p2e   the embedded border router wisun_soc_brcli on kit B
 Phase 3, Silicon Labs' LFN (wisun_soc_lfn_cli, kit A) under our border router (wisun_br, kit B):
   p3
+Our LFN (wisun_lfn, kit A) under our border router (wisun_br, FW_LFN_PARENT, kit B):
+  ours
 
-usage: p23_run.py {p2w,p2e,p3} DIR [--reps N] [--pings N] [--aem N] [--restart] [--rotate] [--mc]
+usage: p23_run.py {p2w,p2e,p3,ours} DIR [--reps N] [--pings N] [--aem N] [--aem-s S] [--restart]
+                  [--rotate] [--mc] [--lfn-resets N] [--timeout S]
 Every rep is a cold join (parent restarted with a new PAN for p2w), followed by --pings
 pings each way (one at a time, 6-9 s apart), the multicast pings (--mc), --aem idle
 windows of 60 s on kit A's AEM (after the last rep), a parent restart (--restart) and an
 LGTK rotation (--rotate). Results: DIR/results.json; consoles DIR/{lfn,br}.log; wsbrd's log
 and pcaps (p2w). The flashing is done beforehand (p23lib.flash).
+Every reset is checked (boot banner) and every search starts at an offset recorded
+before the action. Exit status: 0 if every check passed (resets seen, joins, pings
+and multicast answered, rejoins), 1 otherwise; the failures are listed in
+results.json ("failures").
 """
 import argparse
 import json
@@ -21,6 +28,7 @@ import os
 import random
 import re
 import subprocess
+import sys
 import time
 
 import p23lib as L
@@ -50,7 +58,11 @@ class Run:
         self.a = a
         self.d = os.path.abspath(a.dir)
         os.makedirs(self.d, exist_ok=True)
-        self.res = {"mode": a.mode, "reps": [], "pings": [], "mc": [], "aem_ua": [], "events": []}
+        self.res = {"mode": a.mode, "reps": [], "pings": [], "mc": [], "aem_ua": [], "events": [], "failures": []}
+
+    def fail(self, txt):
+        self.res["failures"].append(txt)
+        self.ev(f"FAIL: {txt}")
 
     def save(self):
         json.dump(self.res, open(os.path.join(self.d, "results.json"), "w"), indent=1)
@@ -67,12 +79,16 @@ class Run:
             W.stop_wsbrd(self.d)
             pcap, t = W.start_wsbrd(self.d, self.a.extra, fresh_storage=fresh)
             self.ev(f"wsbrd started ({os.path.basename(pcap)}, ready {t is not None})")
+            if t is None:
+                self.fail("wsbrd not ready")
             return t
         p = L.size(self.d, "br")
         L.reset(L.B)
         pat = r"Border Router started|BR started|network started|Wi-SUN [Bb]order [Rr]outer" if m == "p2e" else r"BR: interfaces up"
         r = L.wait(self.d, "br", pat, p, 40)
         self.ev(f"parent reset, banner {'seen' if r else 'NOT seen'}")
+        if not r:
+            self.fail("parent reset not seen (no banner)")
         return r[1] if r else time.time()
 
     def parent_stop(self):
@@ -100,10 +116,21 @@ class Run:
             r = L.wait(self.d, "lfn", r"\[Connected: \d+ s\]|\[Failed[^\]]*\]", p, timeout)
             ok = r and r[0].group(0).startswith("[Connected")
         else:
-            L.reset(L.A)
-            if not L.wait(self.d, "lfn", r"interfaces up", p, 10):
-                L.power_cycle(L.A, 3.0)
+            # a sleeping LFN (EM2) can miss the debug-port reset: check the
+            # banner, then power-cycle (longer each time)
+            booted = False
+            for attempt in range(4):
+                p = L.size(self.d, "lfn")
                 t_reset = time.time()
+                if attempt == 0:
+                    L.reset(L.A)
+                else:
+                    L.power_cycle(L.A, 3.0 + 3 * attempt)
+                if L.wait(self.d, "lfn", r"nanostack-efr32fg25-freertos .* starting|interfaces up", p, 12):
+                    booted = True
+                    break
+            if not booted:
+                self.fail("LFN reset not seen (no banner)")
             r = L.wait(self.d, "lfn", r"ARM_NWK_BOOTSTRAP_READY", p, timeout)
             ok = bool(r)
         return (r[1] - t_reset) if ok else None, p
@@ -307,6 +334,26 @@ class Run:
         back = L.wait(self.d, "lfn", pat, p, 900)
         self.ev(f"LFN joined again: {back[1] if back else None}")
         self.res["restart"] = {"t_lost": lost[1] if lost else None, "t_back": back[1] if back else None}
+        if not back:
+            self.fail("LFN did not join again after the parent restart")
+
+    def verdict(self):
+        """Failures of the whole run (joins, pings, multicast, rejoins), on top of the reset checks."""
+        for r in self.res["reps"]:
+            if r["join_s"] is None:
+                self.fail(f"rep {r['rep']}: LFN did not join")
+        for p in self.res["pings"]:
+            if p["rtt_s"] is None:
+                self.fail(f"ping {p['way']} {p.get('i', p.get('phase', ''))} at {p['t']:.0f}: no answer")
+        for m in self.res["mc"]:
+            if not m["lfn_replied"]:
+                self.fail(f"multicast {m['group']} {m['i']}: no answer from the LFN")
+        for r in self.res.get("lfn_resets", []):
+            if r["rejoin_s"] is None:
+                self.fail(f"LFN reset {r['i']}: no rejoin")
+        if self.a.aem and len([u for u in self.res["aem_ua"] if u is not None]) < self.a.aem:
+            self.fail("AEM windows missing")
+        return 1 if self.res["failures"] else 0
 
 
 def main():
@@ -328,15 +375,19 @@ def main():
     ap.add_argument("--parent-wait", type=int, default=15)
     a = ap.parse_args()
     r = Run(a)
+    rc = 1
     try:
         r.main()
+        rc = r.verdict()
     finally:
         r.save()
         L.stop(r.d, "lfn")
         L.stop(r.d, "br")
         if a.mode == "p2w":
             W.stop_wsbrd(r.d)
+    print("RESULT:", "PASS" if rc == 0 else f"FAIL ({len(r.res['failures'])})", flush=True)
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

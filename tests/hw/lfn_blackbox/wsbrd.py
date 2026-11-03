@@ -98,7 +98,7 @@ def stop_wsbrd(d):
 
 def start_lfn_console(d):
     tty = os.path.realpath(glob.glob(f"/dev/serial/by-id/*000{LFN_SN}-if00")[0])
-    env = dict(os.environ, CONSOLE_RTSCTS="1", CONSOLE_BAUD="9600")
+    env = dict(os.environ, CONSOLE_RTSCTS="1", CONSOLE_BAUD="9600", CONSOLE_APPEND="1")  # searches use offsets
     pr = subprocess.Popen([sys.executable, CON, tty, os.path.join(d, "lfn.log"), os.path.join(d, "lfn.fifo")],
                           env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     open(pidfile(d, "lfncon"), "w").write(str(pr.pid))

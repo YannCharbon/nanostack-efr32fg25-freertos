@@ -10,6 +10,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 T = os.path.dirname(os.path.abspath(__file__))
@@ -103,6 +104,14 @@ def reset(sn, off_s=6.0):
         subprocess.run(["commander", "device", "reset", "-s", sn, "-d", DEV], capture_output=True)
 
 
+def verdict(fails):
+    """Print the run's result; exit status 0 if nothing failed."""
+    for f in fails:
+        print(f"FAIL: {f}", flush=True)
+    print("RESULT:", "PASS" if not fails else f"FAIL ({len(fails)})", flush=True)
+    return 1 if fails else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dir")
@@ -138,6 +147,7 @@ def main():
             p0 = size(d, "lfn")
             reset(LFN, 6.0 + 6.0 * attempt)
             ok = wait(d, "lfn", r"Wi-SUN LFN CLI Application", p0, 10)
+            r["reset_seen"] = bool(ok)
             if ok:
                 break
             print(f"rep {rep}: LFN reset attempt {attempt} not seen, retrying", flush=True)
@@ -168,7 +178,11 @@ def main():
     rtt(BR, None, False)
     rtt(LFN, None, False)
     pti(LFN, None, False)
+    run = [r for r in res if r["rep"] >= a.rep0]
+    return verdict([f"rep {r['rep']}: border router not started" for r in run if not r["t_br_started"]]
+                   + [f"rep {r['rep']}: LFN reset not seen" for r in run if not r.get("reset_seen")]
+                   + [f"rep {r['rep']}: no join" for r in run if not r["t_connected"]])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

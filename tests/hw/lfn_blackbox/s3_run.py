@@ -11,6 +11,7 @@ import json
 import os
 import random
 import re
+import sys
 import time
 
 
@@ -32,6 +33,7 @@ def main():
     log = os.path.join(a.dir, f"{a.src}.log")
     jf = os.path.join(a.dir, "s3_pings.json")
     res = json.load(open(jf)) if os.path.exists(jf) else []
+    n0 = len(res)
     rx = re.compile(r"bytes from \S+: icmp_seq=(\d+) time=(\d+) ms")
     for i in range(a.n):
         pos = size(log)
@@ -52,7 +54,12 @@ def main():
         print(f"{a.src}->{a.to} {i}: {rtt} ms", flush=True)
         json.dump(res, open(jf, "w"), indent=1)
         time.sleep(random.uniform(a.gap_min, a.gap_max))
+    fails = [f"{r['from']}->{r['to']} {r['i']}: no reply" for r in res[n0:] if r["rtt_ms"] is None]
+    for f in fails:
+        print(f"FAIL: {f}", flush=True)
+    print("RESULT:", "PASS" if not fails else f"FAIL ({len(fails)})", flush=True)
+    return 1 if fails else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

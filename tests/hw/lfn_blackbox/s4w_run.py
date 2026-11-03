@@ -13,6 +13,7 @@ import os
 import random
 import re
 import subprocess
+import sys
 import time
 
 
@@ -29,6 +30,7 @@ def main():
     a = ap.parse_args()
     jf = os.path.join(a.dir, "s4_pings.json")
     res = json.load(open(jf)) if os.path.exists(jf) else []
+    n0 = len(res)
     for i in range(a.n):
         for g in a.groups:
             t = time.time()
@@ -43,7 +45,13 @@ def main():
             print(f"{g} {i}: " + ", ".join(f"{f} {ms:.0f} ms" for f, ms in rep), flush=True)
             json.dump(res, open(jf, "w"), indent=1)
             time.sleep(random.uniform(a.gap_min, a.gap_max))
+    # one request series per group and round; replies counted by source (distinct)
+    fails = [f"{r['group']} {r['i']}: no reply" for r in res[n0:] if not {f for f, _ in r["replies"]}]
+    for f in fails:
+        print(f"FAIL: {f}", flush=True)
+    print("RESULT:", "PASS" if not fails else f"FAIL ({len(fails)})", flush=True)
+    return 1 if fails else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

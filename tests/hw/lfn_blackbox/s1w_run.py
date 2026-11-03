@@ -10,11 +10,12 @@ usage: s1w_run.py DIR [--reps 10] [--post-s 30] [--lfn-trace all,info] [--extra 
 import argparse
 import json
 import os
+import sys
 import time
 
 import pti
 import wsbrd
-from s1_run import LFN, reset, send, size, wait
+from s1_run import LFN, reset, send, size, verdict, wait
 
 
 def main():
@@ -43,7 +44,8 @@ def main():
             p0 = size(d, "lfn")
             r["t_lfn_reset"] = time.time()
             reset(LFN, 6.0 + 6.0 * attempt)
-            if wait(d, "lfn", r"Wi-SUN LFN CLI Application", p0, 10):
+            r["reset_seen"] = bool(wait(d, "lfn", r"Wi-SUN LFN CLI Application", p0, 10))
+            if r["reset_seen"]:
                 break
             print(f"rep {rep}: LFN reset attempt {attempt} not seen, retrying", flush=True)
         pti.start(LFN, lfn_pti)
@@ -68,7 +70,11 @@ def main():
         res.append(r)
         with open(jf, "w") as f:
             json.dump(res, f, indent=1)
+    run = [r for r in res if r["rep"] >= a.rep0]
+    return verdict([f"rep {r['rep']}: wsbrd not ready" for r in run if not r["t_br_started"]]
+                   + [f"rep {r['rep']}: LFN reset not seen" for r in run if not r.get("reset_seen")]
+                   + [f"rep {r['rep']}: no join" for r in run if not r["t_connected"]])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
