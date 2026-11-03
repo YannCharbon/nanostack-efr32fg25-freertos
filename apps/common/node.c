@@ -344,6 +344,18 @@ static void stack_task(void *arg)
     mbed_trace_include_filters_set(APP_TRACE_DEBUG_GROUPS);
 #endif
     fault_report_previous();
+#ifdef FW_BOARD_FLASH_DPD
+    board_flash_shutdown();
+#endif
+#ifdef FW_TEST_EM4_AFTER_S
+    tr_warn("TEST MODE: EM4 in %u s (FW_TEST_EM4_AFTER_S)", (unsigned)FW_TEST_EM4_AFTER_S);
+    board_test_em4(FW_TEST_EM4_AFTER_S);
+#endif
+#ifdef FW_TEST_EM2_IDLE_S
+    tr_warn("TEST MODE: EM2 idle in %u s, VCOM %s (FW_TEST_EM2_IDLE_S)", (unsigned)FW_TEST_EM2_IDLE_S,
+            FW_TEST_EM2_VCOM_OFF ? "off" : "on");
+    board_test_em2_idle(FW_TEST_EM2_IDLE_S, FW_TEST_EM2_VCOM_OFF);
+#endif
 #ifdef FW_FLASH_FS
     {
         extern int flash_fs_init(bool erase);

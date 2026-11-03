@@ -86,6 +86,13 @@ void ns_port_clear_stats(void);
 /* Callback timer slots in use / available (diagnostics). */
 int ns_port_callback_timers_used(void);
 
+/* Board power (board_power.c): the radio board's SPI flash to deep
+ * power-down (FW_BOARD_FLASH_DPD); test only: EM4 after a delay
+ * (FW_TEST_EM4_AFTER_S), or EM2 with nothing running (FW_TEST_EM2_IDLE_S). */
+void board_flash_shutdown(void);
+void board_test_em4(uint32_t after_s);
+void board_test_em2_idle(uint32_t after_s, int vcom_off);
+
 #ifdef __cplusplus
 }
 #endif

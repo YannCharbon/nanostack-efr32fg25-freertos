@@ -3,8 +3,8 @@
 Experimental proof-of-concept firmware for the Silicon Labs **EFR32FG25**. It
 runs our extracted Nanostack
 ([`nanostack-generic-standalone`](../nanostack-generic-standalone), Wi-SUN FAN 1.0
-profile) on **FreeRTOS** with a **RAIL** radio driver, as two images, for two
-board/region variants:
+profile, and FAN 1.1 with LFNs) on **FreeRTOS** with a **RAIL** radio driver,
+as three images, for two board/region variants:
 
 | Variant (CMake preset) | Radio board, mainboard | Wi-SUN PHY | Status |
 | --- | --- | --- | --- |
@@ -17,6 +17,7 @@ The two images:
 | --- | --- | --- |
 | `wisun_br` | Border Router: authenticator (EAP-TLS server), DHCPv6 server, RPL root, null backhaul with static prefix `fd12:3456::/64` | `ws_border_router` |
 | `wisun_rn` | Router Node: EAP-TLS supplicant, DHCPv6 client, RPL router, UDP test on port 1234 | `ws_router` |
+| `wisun_lfn` | FAN 1.1 Limited Function Node: the router program as an LFN, sleeping in EM2 between its windows ([FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29)) | `ws_router` |
 
 The specification is section 5 of
 `nanostack-generic-standalone/docs/GENERICITY_PLAN.md`. Deviations from it are
@@ -25,19 +26,26 @@ of the stack's porting guide, `nanostack-generic-standalone/docs/PORTING.md`:
 `port/freertos/` implements the porting API and `drivers/rail/` the radio
 driver.
 
-**Status (2026-10-23).**
+**Status (2026-11-03).**
 
-- Both images build headless, for both variants, and link against the real SDK,
+- The images build headless, for both variants, and link against the real SDK,
   FreeRTOS and RAIL library.
-- **On two BRD4271A kits (EU), the BR and the RN form a valid Wi-SUN network.**
-  The RN authenticates with EAP-TLS, installs the GTK, picks the BR as RPL
-  parent and gets a DHCPv6 address in `fd12:3456::/64`; the BR lists it in its
-  routing table. Ping and UDP work both ways. This held on 3 consecutive cold
-  boots; see [Hardware results](#hardware-results-brd4271a-eu-2026-10-23).
+- **On the BRD4271A kits (EU), the BR and the RN form a valid Wi-SUN network**
+  (2026-10-23, 3 cold boots; see
+  [Hardware results](#hardware-results-brd4271a-eu-2026-10-23)), in PHY mode 1a
+  and mode 3.
+- **FAN 1.1 LFN on up to four kits:** our LFN under our border router and
+  under our routers (three and four kits), with multicast group
+  subscriptions; under Silicon Labs' parents, and Silicon Labs' LFN under our
+  border router (black-box phases 2–3); router and border router resets and
+  the LFN's rejoin; keys and frame counters in flash (`FW_FLASH_FS`).
+- **Power measured** with the kits' energy monitors: the FFN router and
+  border router (HW5), the LFN's idle current against its listen interval,
+  and its EM2 floor ([below](#lfn-em2-floor-and-wake-figures-2026-11-03)).
 - The same application, port and driver code also runs in a **host twin** on
-  Linux with a fake RAIL; see
+  Linux with a fake RAIL, FFN and LFN; see
   [Host twin](#host-twin-sanity-check-without-hardware).
-- Not run on hardware: the NA/BRD4270B variant, more than two nodes, long runs.
+- Open items: [Known gaps / TODO](#known-gaps--todo).
 
 ## Repository layout
 
@@ -60,7 +68,11 @@ apps/common/                        init sequence + tasklet (node.c), CLI, ping/
 apps/br/, apps/rn/                  role-specific parts
 tools/                              sdk_generate.sh, pem2c.py, size_report.py, map_breakdown.py
 tests/host_twin/                    host twin (Linux build of the same code with a fake RAIL)
-tests/hw/                           hardware test tools: console.py (VCOM logger + commands), run_hw.sh (one cold boot)
+tests/hw/                           hardware test tools: console.py (VCOM logger + commands), hwlib.sh (shared kit
+                                    helpers), run_hw.sh (two kits, one cold boot), run_hw_mesh.sh (three kits, LFN
+                                    under a router), run_hw_lfn4.sh (four kits), hw_lfn_power.sh (LFN idle current,
+                                    AEM dumps), aem_floor.py (EM2 floor and wake shapes), hw5_power.py,
+                                    lfn_blackbox/ (interoperability with Silicon Labs' stack)
 tests/hw_logs/                      curated logs of the hardware runs
 docs/stack-patches/                 stack patches proposed earlier, now applied in the stack
 ```
@@ -110,6 +122,14 @@ cmake --build --preset br-na     # or rn-na / all-na
 cmake --preset fw-mode3          # BRD4271A / EU, PHY mode 3 (build/fw-mode3)
 cmake --build --preset all-mode3 # or br-mode3 / rn-mode3
 ```
+
+**Board power and power-test options.** `FW_BOARD_FLASH_DPD` (default ON):
+the radio board's SPI flash (unused) to deep power-down at boot. Test only:
+`FW_TEST_EM4_AFTER_S=<s>` enters EM4 for good after that many seconds (a power
+cycle brings the chip back, flash within the delay);
+`FW_TEST_EM2_IDLE_S=<s>` stops before the stack starts and stays in EM2 with
+nothing running, `FW_TEST_EM2_VCOM_OFF=ON` with it also switches the VCOM pins
+off ([LFN EM2 floor](#lfn-em2-floor-and-wake-figures-2026-11-03)).
 
 `FW_BOARD` and `FW_REGION` can also be set by hand. Configure fails if the
 region does not match the board, because each generated radio config is
@@ -225,8 +245,20 @@ They are built for Linux, with three host replacements:
 
 ```bash
 cmake -S tests/host_twin -B build/host -G Ninja && ninja -C build/host
-tests/host_twin/run_twin.sh build/host            # BR + RN, scripted through the real CLI, ~4 min
+tests/host_twin/run_twin.sh build/host                    # BR + RN, scripted through the real CLI, ~4 min
+tests/host_twin/run_twin.sh build/host 600 <dir> 60 lfn   # BR (LFN parent) + LFN, ~6 min
 ```
+
+The script prints PASS/FAIL per check and exits with 0 only if every check
+passed; ping replies are counted as distinct sequence numbers.
+
+**LFN mode** (`lfn`): `twin_br_lfn` (the border router built as with
+`FW_LFN_PARENT`) and `twin_lfn` (the `wisun_lfn` image). It runs the radio
+driver's LFN paths: windows opened and closed through the MAC's state
+control, the RX-active read, the backoff with the radio off, the scheduled
+TX from idle; `RAIL_ConfigSleep()` and `RAIL_InitPowerManager()` are no-ops,
+so nothing sleeps. The LFN's checks: EAP-TLS, LGTK, DHCPv6 address (the
+border router's DHCPv6 server answered it), pings and UDP both ways.
 
 What it exercises:
 
@@ -249,7 +281,17 @@ Two other differences:
 - `rail_config.c` cannot be compiled for a 64-bit host, so the fake RAIL
   copies its channel range.
 
-Results (3 consecutive runs, final code, 60 s settle before the tests):
+**2026-11-03** (stack `edd1a1e`): the twin had not linked since the HW9 fix
+(the fake RAIL lacked `RAIL_GetChannel()` and `RAIL_GetRxIncomingPacketInfo()`,
+then the LFN's `RAIL_ConfigSleep()`, `RAIL_InitPowerManager()` and the TX
+power read-back); these are now in `fake_rail.c`. Results, 60 s settle:
+
+| Mode | Runs | Join | Checks | Ping replies, node → BR / BR → node |
+| --- | --- | --- | --- | --- |
+| FFN | 4 (1 with the previous script) | 86–175 s | all pass | 10/10 / 10/10 in each run |
+| LFN | 4 | 38–48 s | all pass in 3; in the first, the border router's `nodes` check failed (it lists RPL routes, and an LFN under the border router has none: the check is now the DHCPv6 exchange) | 8–10 / 9–10 |
+
+Earlier results (2026-10-23, 3 consecutive runs, final code, 60 s settle before the tests):
 
 | Run | RN join | Auth / GTK / parent / GUA / `nodes` | UDP both ways | Ping RN→BR | Ping BR→RN | Enh-ACK latency max (RN / BR) |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -317,6 +359,21 @@ It resets the BR, then the RN, waits for the join and clears the statistics.
 It then runs ping and UDP both ways and prints PASS/FAIL. Kit serial numbers and
 ttys come from `BR_SN`, `BR_TTY`, `RN_SN` and `RN_TTY`.
 
+**Kit scripts: common rules** (`run_hw_mesh.sh`, `run_hw_lfn4.sh`,
+`hw_lfn_power.sh`, through `tests/hw/hwlib.sh`; `lfn_blackbox/p23_run.py` the
+same way):
+- `console.py` starts each log empty (`CONSOLE_APPEND=1` appends, for callers
+  that search from offsets), and every search starts at the offset recorded
+  at the kit's last reset, so a line from an earlier boot or run never
+  satisfies a check;
+- every reset is checked by the boot banner; a kit sleeping in EM2 can miss
+  a reset over the debug port, so the reset is retried, then the target
+  supply is switched off and on;
+- answers are counted as distinct sequence numbers or datagrams, so a
+  repeated line cannot hide a missing one;
+- each script prints PASS/FAIL lines and `RESULT:`, and exits with 0 only if
+  every check passed.
+
 1. **Flash and open both consoles.** Mass erase first. Check the first lines:
    - `nanostack-efr32fg25-freertos BR starting, RAIL x.y.z`;
    - EU: `PHY config ok: ch0 863100000 Hz, spacing 100000 Hz, 50000 bps, 69 channels`
@@ -379,8 +436,9 @@ ttys come from `BR_SN`, `BR_TTY`, `RN_SN` and `RN_TTY`.
    `configUSE_TRACE_FACILITY`; otherwise only the stack task's own headroom is
    shown.
 8. **Three cold boots.** Reset or power-cycle both boards (BR first) and repeat
-   steps 3–6, three times. No persistence is implemented, so every boot is a full
-   join with fresh keys.
+   steps 3–6, three times. With `FW_FLASH_FS` (default), a reset node keeps its
+   keys and frame counters: for a full join with fresh keys, `nvm erase` on
+   both nodes first, or build with `-DFW_FLASH_FS=OFF`.
 9. **Robustness (optional).**
    - Reset the RN: it rejoins.
    - Reset the BR: the RN detects the loss and rejoins the new PAN.
@@ -639,7 +697,7 @@ One boot had no traffic check (the test script read the LFN's address too early;
 
 **Rejoin after a network restart: fixed in the stack.** With the first images, after the border router and the router were reset, the LFN found the router again (LPAS 339 s after the reset) but rejoined with its old keys, without EAPOL, as after a parent loss: the restarted network could not read its LPCS, no LPC came, and it lost the parent again about 390 s later. The stack now ties an LFN's keys to the PAN ID of the network that gave them, and drops them after 4 LPCS without an LPC (`c379ed0`, the stack's `docs/LFN_STACK.md` §10). The emulator's parent-loss test (same PAN, keys still valid) still rejoins without EAPOL.
 
-**Router reset alone: frame counters.** A router reset while the border router keeps running did not rejoin: it authenticated and received its GTK and LGTK, but its DHCPv6 requests got no reply for 18 min (join state 4). The firmware does not store frame counters (no persistence, [Known gaps](#known-gaps--todo)), so the rebooted router counts from 0 under the same GTK, and the border router, which keeps its neighbour entry with the old counter, most probably drops its secured frames as replays (`MLME_COUNTER_ERROR` in the MAC, a debug trace that was not visible here). Not confirmed; NVM frame counters are needed in any case.
+**Router reset alone: frame counters** (before `FW_FLASH_FS`, which now stores the frame counters). A router reset while the border router keeps running did not rejoin: it authenticated and received its GTK and LGTK, but its DHCPv6 requests got no reply for 18 min (join state 4). The firmware does not store frame counters (no persistence, [Known gaps](#known-gaps--todo)), so the rebooted router counts from 0 under the same GTK, and the border router, which keeps its neighbour entry with the old counter, most probably drops its secured frames as replays (`MLME_COUNTER_ERROR` in the MAC, a debug trace that was not visible here). Not confirmed; NVM frame counters are needed in any case.
 
 **Observed.** Each time the LFN registers, the router sends a DAO for the LFN's address, and its DAO-ACK re-runs the stack's bootstrap state machine, which reports `ARM_NWK_BOOTSTRAP_READY` to the application again (inherited Nanostack behaviour in `ws_bootstrap.c`, `RPL_EVENT_DAO_DONE`). Harmless; the application counts it in `ready=… times`.
 
@@ -728,6 +786,115 @@ The move itself (switch, release, no loss) is verified in the emulator only.
 
 **S7 weak link** (LFN `FW_TX_POWER_DDBM=-150`, `FW_TEST_MAC_ALLOW=<router 1>`, `FW_LFN_PARENT_CHECK_S=300` for the RSL log; router 1 `txpower -15`; images from the merged stack `edd1a1e`): with both ends at the minimum TX power, −15 dBm, the LFN hears router 1 at **−35 dBm** (LPA at the join, and the smoothed RSL of the sync frames at both checks), about 60 dB above the sensitivity of mode 3. 1 run of 10 min: joined, kept its parent, **60 of 60** border router → LFN datagrams answered (both directions). **Near-sensitivity was not reached:** on a desk, over the air, the TX power alone cannot lower the RSL below about −35 dBm; a weak link needs attenuators or a cabled setup (the MTS bench) or distance. A second run at the same RSL would add nothing, so none was made; S7 near sensitivity stays open.
 
+## LGTK after a router reset: re-test (2026-11-03)
+
+On 2026-11-03 a router reset while the network ran once took 560 s to get
+its LGTK: its key request went out during its join and the border router's
+handshake was refused ("Incoming KMP rejected, auth not ongoing"). The stack
+fix `3e94805` makes the key request skipped during the join's authentication
+when that authentication ends. Re-test with images from stack `edd1a1e`
+(which contains it), EU mode 3: border router 440240046 and router 440235475
+(`FW_RN_LFN_PARENT`, keys in flash), two of our LFNs running in the network.
+The border router was started, the router joined (LGTK 22 s after its
+reset), the network ran for 180 s, then the router alone was reset: 1 run.
+
+- The router saw the LGTK hash mismatch 43.8 s after its reset (its uptime),
+  during its join, and sent no request then;
+- operational (`ARM_NWK_BOOTSTRAP_READY`) at 83.6 s;
+- its key request (EAPOL-Key, `LGTKL 0`) went out at 85.0 s, and the LGTK
+  was installed at **88.8 s**.
+
+The slow case did not occur in this run.
+
+**It occurred again in another case**, the cold start of
+`run_hw_mesh.sh` (the same images, right after): the border router reset,
+then the router 3 s later, both with their keys in flash. The router saw the
+LGTK hash mismatch at 17.9 s and its key request went out at 45.6 s, during
+its join (operational at 48.0 s). The border router no longer held a live
+PMK/PTK for it ("PMK not live PTK not live") and started a full EAP-TLS; the
+router's supplicant refused it ("Incoming KMP rejected, auth not ongoing",
+at 47.9 s, then at 85 s, 181 s, 331 s and 436 s), and the LGTK came with a
+later request, at **520.9 s**. `run_hw_mesh.sh` reported it as a FAIL. Over
+the four router boots of the day's last runs: LGTK 22 s, 89 s and about
+160 s after the reset, and 521 s in this case. Open: the fix `3e94805`
+covers a request skipped during the join, not a request sent during the
+join and answered by an EAP-TLS that the supplicant refuses.
+
+## LFN EM2 floor and wake figures (2026-11-03)
+
+The current of our LFN between its wakes, where the chip is in EM2, and the
+shape of its wakes, for the emulator's FG25 power profile (which used the
+datasheet's 4.6 µA for EM2).
+
+**Setup.** Stack `edd1a1e`; EU mode 3, +10 dBm. Border router 440240046
+(`FW_LFN_PARENT`), router 440235475 (`FW_RN_LFN_PARENT`, in the network), and
+our LFN on the two kits whose energy monitor works: 440235509 (BRD4271A on
+BRD4001A, AEM at 10 kHz) and 440290182 (new: BRD4271A A06 on BRD4002A, AEM at
+100 kHz). LFN listen interval 60 s (`APP_LFN_LISTEN_INTERVAL_MS=60000`), LFN
+broadcast slots every 10 s and a sync frame every 50 s (defaults), so the
+chip sleeps in EM2 for seconds between wakes. `tests/hw/hw_lfn_power.sh`:
+3 cold boots per image, then per kit 2 AEM windows of 60 s and 2 dumps of 60 s;
+`tests/hw/aem_floor.py` finds the wakes (current averaged over 1 ms above
+0.1 mA) and takes the **mean** of every sample at least 5 ms before and
+50 ms after a wake. The mean, not the median: single samples are noisy
+(−5 to +70 µA at 10 kHz) and in EM2 the DC-DC converter draws in pulses, so
+the median is several µA below the charge drawn.
+
+**Floor between wakes** (6 dumps of 60 s per kit and image; spread of the
+means of 0.1 s quiet segments in brackets):
+
+| Kit | LFN, `FW_BOARD_FLASH_DPD=OFF` | LFN, `FW_BOARD_FLASH_DPD=ON` |
+| --- | --- | --- |
+| 440290182 (BRD4002A) | **7.06–7.09 µA** (6.81–7.99) | **6.99–7.02 µA** (6.74–7.95) |
+| 440235509 (BRD4001A) | **12.40–12.46 µA** (11.87–13.61) | **12.31–12.33 µA** (11.68–13.36) |
+
+**What the floor is made of** (the same kits; test images that stop before
+the stack starts, 3 power-ups each, AEM average over 30 s):
+
+| Kit | EM2, nothing running (`FW_TEST_EM2_IDLE_S`) | the same, VCOM pins and VCOM enable off (`FW_TEST_EM2_VCOM_OFF`) | EM4 (`FW_TEST_EM4_AFTER_S`): the board's residual |
+| --- | --- | --- | --- |
+| 440290182 (BRD4002A) | 6.92–6.94 µA | 6.28–6.30 µA | 0.14–0.15 µA |
+| 440235509 (BRD4001A) | 5.84–5.87 µA | 5.57–5.59 µA | 0.99–1.04 µA |
+
+- On kit 440290182 the LFN's floor equals the kit's bare EM2 current: RAIL's
+  sleep configuration and the stack add nothing measurable between wakes.
+  This is the figure for the profile: **about 7.0 µA** for the SoC with full
+  RAM retention and RAIL's timer kept on the low-frequency clock, plus the
+  radio board (datasheet EM2: 4.6 µA).
+- On kit 440235509, the LFN's floor is 6.5 µA above the bare EM2 of the same
+  kit. Silicon Labs' LFN measured 11.9 µA between wakes on this kit (HW5,
+  root repo `HW5_BlackBox_Phase1_Results.md`), so the excess comes with the
+  radio set-up on this kit, whichever stack runs; its cause was not
+  isolated (radio board, mainboard or AEM).
+- The VCOM link to the board controller (UART pins driven in EM2, VCOM
+  enable) costs 0.3–0.6 µA. The SPI flash's deep power-down
+  (`FW_BOARD_FLASH_DPD`) saves 0.05–0.1 µA: the flash was already close to
+  its deep power-down current, or the command had no effect (not checked).
+
+**Wakes** (pooled over the dumps without flash DPD; 6 dumps per kit):
+
+| | 440290182 | 440235509 |
+| --- | --- | --- |
+| RX plateau of a listening window (chip total) | 6.38 mA | 6.16 mA |
+| Set-up, from the first sample above 0.2 mA to the RX plateau (wake from EM2, clocks, radio start) | 0.26 ms, 0.19 µC above the floor | 0.4 ms, 0.5 µC |
+| Teardown, from the RX plateau to the last sample above 0.2 mA | 0.09 ms, 0.07 µC | 0.2 ms, 0.3 µC |
+| A whole listening wake (window, set-up, teardown), median | 9.0 ms, 46 µC | 9.0 ms, 44 µC |
+| Wakes without the radio (timers), each | 0.10 µC, peak 0.6 mA; 7 per minute | 0.09 µC, peak 0.36 mA; 55 per minute |
+| TX at +10 dBm (2 frames) | — | 35.4 mA plateau, 12.4 ms; 608 µC with its CCA, set-up and the RX for the ACK |
+
+Average idle current in the same runs (AEM windows of 60 s, 1–6 min after the
+join): 10.3–19.7 µA on 440290182, 19.0–29.3 µA on 440235509; the dumps taken
+after the windows averaged 13.7–14.8 µA (12 dumps) and 19.2–20.0 µA (10 of
+12; 28.8 and 29.0 µA in the first boot). The windows right after the join
+still hold post-join traffic. Kit 440235509's 55 timer wakes per minute
+cost only about 0.1 µA; its excess over the other kit is its floor.
+
+**Downlink with a 60 s listen interval.** Replies from the LFN came up to
+105 s after the request (the frame missed one window), and in one boot of 6
+where kit 440235509 chose the router as parent, no ping or UDP datagram from
+the border router reached it in 5 min (the measurement windows are not
+affected). Not investigated here.
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority
@@ -787,17 +954,23 @@ The move itself (switch, release, no loss) is verified in the emulator only.
      `rcp/mac/rf_driver_storage.c` (D15). Until GENERICITY_PLAN.md step S3 this
      repo read the source lists out of the stack's `CMakeLists.txt` and had its
      own copies of the stack's `common/*.h` headers and `rand_*` helpers.
-  4. **No file system.** The stack is built with `NANOSTACK_FILE_NO_STDIO`, so
-     `ns_file_system.c` has no stdio fallback (before S3: link wraps onto
-     failing stubs). The stack's root path stays NULL: storage is disabled,
-     RAM-only first step (D9/D10).
+  4. **File system.** The stack is built with `NANOSTACK_FILE_NO_STDIO`, so
+     `ns_file_system.c` has no stdio fallback. With `FW_FLASH_FS` (default ON
+     since 2026-11-02) the port backs the stack's file API with a small store
+     in internal flash ([Keys and frame counters in flash](#keys-and-frame-counters-in-flash-fw_flash_fs-default-on));
+     without it, the root path stays NULL and storage is disabled (the plan's
+     RAM-only first step, D9/D10).
   5. **Radio profile.** The SDK ships the NA single-PHY radio config as a FAN
      1.1-profile PHY (`…Plan1_2FSK_1b_NA`, ChanPlan 1). Its PHY parameters are
      the FAN 1.0 NA class 1 / mode 1b ones (902.2 MHz, 200 kHz, 129 ch,
      50 kbit/s, h = 1); the driver checks them against the stack's at
      `SET_RF_CONFIGURATION`.
-  6. **Power.** An EM1 requirement is held permanently: always-on FFN, RX is
-     continuous.
+  6. **Power.** The FFN images (`wisun_br`, `wisun_rn`) hold an EM1
+     requirement permanently: always-on FFN, RX is continuous. The LFN image
+     sleeps in EM2 between its windows (HW8 H3,
+     [FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29)).
+     `FW_BOARD_FLASH_DPD` (default ON) puts the radio board's unused SPI flash
+     in deep power-down at boot.
   7. **`sl_main`.** The SDK's start-up framework (`sl_main`) owns `main()`:
      `apps/common/node.c` `main()` runs in its start task.
   8. **Full newlib, not newlib-nano**, for the stack's 64-bit printf formats
@@ -848,24 +1021,41 @@ The move itself (switch, release, no loss) is verified in the emulator only.
 
 ## Known gaps / TODO
 
-- **Verified on hardware (EU, two nodes)**, see
-  [Hardware results](#hardware-results-brd4271a-eu-2026-10-23):
-  - RAIL init and the radio config;
-  - PHR, FCS and whitening between boards;
-  - scheduled TX, CCA, Enh-ACK timing, FHSS hopping and synchronisation;
-  - EAP-TLS with the SE TRNG, DHCPv6, RPL, ping, UDP;
-  - IRQ priorities (no boot warning), stack sizes, VCOM.
-- **LFN (FAN 1.1):** see [FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29). Not done: our LFN against Silicon Labs' parent and our parent against Silicon Labs' LFN (black-box phases 2–3, which need the interoperability IEs LCP/FLUS); long runs; the LFN's console in EM2. An LFN under a router runs on three kits, see [An LFN under a router on the kits](#an-lfn-under-a-router-on-the-kits-2026-10-30).
-- **Still unverified:**
-  - the NA/BRD4270B variant on hardware;
-  - more than two nodes or multi-hop;
-  - long runs (only about 5 min per boot);
-  - RN or BR loss and rejoin;
+- **Verified on hardware (EU)**:
+  - two nodes ([Hardware results](#hardware-results-brd4271a-eu-2026-10-23)):
+    RAIL init and the radio config; PHR, FCS and whitening between boards;
+    scheduled TX, CCA, Enh-ACK timing, FHSS hopping and synchronisation;
+    EAP-TLS with the SE TRNG, DHCPv6, RPL, ping, UDP; IRQ priorities (no boot
+    warning), stack sizes, VCOM;
+  - PHY mode 3 next to mode 1a, idle-tick skipping
+    ([2026-10-28](#hardware-results-idle-tick-skipping-and-phy-mode-3-brd4271a-eu-2026-10-28));
+  - FAN 1.1 LFN: under our border router, and under our routers on three and
+    four kits (two hops), with multicast group subscriptions
+    ([FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29) and the sections after it);
+  - interoperability with Silicon Labs' stack in both directions (black-box
+    phases 2–3, [above](#interoperability-with-silicon-labs-wi-sun-stack-lfn-black-box-phases-23-2026-10-30-11-02));
+  - node loss and rejoin: LFN resets, border router resets and the LFN's
+    rejoin, a router reset while the network runs, with keys and frame
+    counters in flash (`FW_FLASH_FS`);
+  - power: the FFN router and border router (HW5), the LFN's idle current
+    against its listen interval, its EM2 floor and wake figures
+    ([below](#lfn-em2-floor-and-wake-figures-2026-11-03)).
+- **Open on hardware:**
+  - **LFN better-parent move:** the checks run and keep a good parent, but no
+    move was observed on the kits (4 runs, [2026-11-03](#lfn-multicast-subscriptions-better-parent-and-weak-link-on-the-kits-2026-11-03));
+    the move itself is verified in the emulator only;
+  - **weak link near sensitivity** (S7): on a desk the RSL cannot go below
+    about −35 dBm; it needs attenuators (the MTS bench) or distance;
+  - **LGTK after a router reset:** a router can wait about 520–560 s for its
+    LGTK when its border router starts an EAP-TLS that the router's
+    supplicant refuses; seen again with the stack fix `3e94805`
+    ([re-test](#lgtk-after-a-router-reset-re-test-2026-11-03));
+  - long runs: no overnight run yet (runs of 10–20 min per boot);
+  - the NA/BRD4270B variant (902–928 MHz) on hardware: the BRD4270B kit runs
+    the EU images only;
   - CCA behaviour against real interference; CCA thresholds and TX power
-    calibration;
-  - range: the boards were next to each other at −13 dBm, and nothing checked
-    receiver saturation or weak links;
-  - power consumption.
+    calibration; receiver saturation;
+  - the LFN's console reads input only while the LFN is awake (EM2).
 - **Stack task blocked by ECC.** EAP-TLS ECC blocks the single stack task for up
   to 0.73 s (BR) and 0.89 s (RN) during each join. The MAC (ACKs, FHSS)
   stalls meanwhile, but join still works. Options:
@@ -880,13 +1070,6 @@ The move itself (switch, release, no loss) is verified in the emulator only.
   `APP_WS_CHAN_FIRST/LAST` (channel mask) was meant to shorten sweeps, but with
   a 16-channel mask the twin RN never got its unicast EAPOL acknowledged
   ("channels: BC 129 UC 16"). Experimental; to investigate in the stack.
-- **No persistence** (NVM3 `ns_file_*` callbacks: TODO). Keys and frame counters
-  are lost on reboot, and every boot is a full join. A router reset while its
-  border router keeps running does not rejoin (seen on the three kits): it
-  restarts its frame counter at 0 under the same GTK, and the border router,
-  which keeps its neighbour entry, most probably rejects its secured frames
-  as replays (`MLME_COUNTER_ERROR`); its DHCPv6 requests got no reply for
-  18 min.
 - **No real backhaul** (null `bh0`). SLIP-over-UART is Phase 2.
 - **Phase B** (higher-priority MAC context) is not implemented. Measure
   `ack_lat_max` first.
