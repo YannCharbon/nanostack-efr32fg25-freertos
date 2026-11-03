@@ -578,6 +578,30 @@ RAIL_Status_t RAIL_GetRxTimeSyncWordEndAlt(RAIL_Handle_t h, RAIL_RxPacketDetails
     return RAIL_STATUS_NO_ERROR;
 }
 
+/* Channel the radio is on, or was last on (in RX: the channel of the
+ * frame being received or just received) */
+RAIL_Status_t RAIL_GetChannel(RAIL_Handle_t h, uint16_t *ch)
+{
+    (void)h;
+    *ch = state == R_TX ? txp.channel : rx_channel;
+    return RAIL_STATUS_NO_ERROR;
+}
+
+/* The frame being received (rail_phy.c: hop deferred during a reception) */
+RAIL_Status_t RAIL_GetRxIncomingPacketInfo(RAIL_Handle_t h, RAIL_RxPacketInfo_t *info)
+{
+    (void)h;
+    if (!receiving) {
+        return RAIL_STATUS_INVALID_STATE;
+    }
+    memset(info, 0, sizeof(*info));
+    info->packetStatus = RAIL_RX_PACKET_RECEIVING;
+    info->packetBytes = rx_len;
+    info->firstPortionBytes = rx_len;
+    info->firstPortionData = rx_buf;
+    return RAIL_STATUS_NO_ERROR;
+}
+
 /* RAIL_CopyRxPacket() is a static inline in rail.h: nothing to fake. */
 
 /* ------------------------------------------------- init / config stubs */
@@ -637,7 +661,20 @@ uint16_t RAIL_ConfigChannels(RAIL_Handle_t h, const RAIL_ChannelConfig_t *c, RAI
 RAIL_Status_t RAIL_IEEE802154_Init(RAIL_Handle_t h, const RAIL_IEEE802154_Config_t *c) { (void)h; (void)c; return RAIL_STATUS_NO_ERROR; }
 RAIL_Status_t RAIL_IEEE802154_ConfigGOptions(RAIL_Handle_t h, RAIL_IEEE802154_GOptions_t m, RAIL_IEEE802154_GOptions_t o) { (void)h; (void)m; (void)o; return RAIL_STATUS_NO_ERROR; }
 RAIL_Status_t RAIL_ConfigTxPower(RAIL_Handle_t h, const RAIL_TxPowerConfig_t *c) { (void)h; (void)c; return RAIL_STATUS_NO_ERROR; }
-RAIL_Status_t RAIL_SetTxPowerDbm(RAIL_Handle_t h, RAIL_TxPower_t p) { (void)h; (void)p; return RAIL_STATUS_NO_ERROR; }
+static RAIL_TxPower_t tx_power_ddbm = 100;
+RAIL_Status_t RAIL_SetTxPowerDbm(RAIL_Handle_t h, RAIL_TxPower_t p)
+{
+    (void)h;
+    /* the boards' range in the EU PHYs (README: -15.0 dBm minimum) */
+    tx_power_ddbm = p < -150 ? -150 : p > 200 ? 200 : p;
+    return RAIL_STATUS_NO_ERROR;
+}
+RAIL_TxPower_t RAIL_GetTxPowerDbm(RAIL_Handle_t h) { (void)h; return tx_power_ddbm; }
+
+/* LFN (rail_phy_sleep_init): no sleep on the host, the timebase is the
+ * host's monotonic clock */
+RAIL_Status_t RAIL_ConfigSleep(RAIL_Handle_t h, RAIL_SleepConfig_t c) { (void)h; (void)c; return RAIL_STATUS_NO_ERROR; }
+RAIL_Status_t RAIL_InitPowerManager(void) { return RAIL_STATUS_NO_ERROR; }
 RAIL_Status_t RAIL_SetRxTransitions(RAIL_Handle_t h, const RAIL_StateTransitions_t *t) { (void)h; (void)t; return RAIL_STATUS_NO_ERROR; }
 RAIL_Status_t RAIL_SetTxTransitions(RAIL_Handle_t h, const RAIL_StateTransitions_t *t) { (void)h; (void)t; return RAIL_STATUS_NO_ERROR; }
 

@@ -88,3 +88,12 @@ endfunction()
 
 add_twin(twin_br br nanostack_br_fw)
 add_twin(twin_rn rn nanostack_rn_fw)
+# FAN 1.1 LFN paths (run_twin.sh lfn): the border router with LFN parenting
+# (FW_LFN_PARENT) and the LFN image (wisun_lfn); the driver's LFN paths
+# (windows through the MAC's state control, RX-active read, backoff with the
+# radio off, scheduled TX from idle) run on the fake RAIL, the EM2 sleep
+# itself does not
+add_twin(twin_br_lfn br nanostack_br_fw)
+target_compile_definitions(twin_br_lfn PRIVATE APP_LFN_PARENT=1)
+add_twin(twin_lfn rn nanostack_rn_fw)
+target_compile_definitions(twin_lfn PRIVATE APP_ROLE_LFN=1)
