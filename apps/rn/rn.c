@@ -66,6 +66,11 @@ void app_role_configure(void)
         /* Proposed listen interval (LUS-IE); the parent may adjust it (LTO-IE) */
         lfn.listen_interval_ms = APP_LFN_LISTEN_INTERVAL_MS;
 #endif
+#ifdef APP_LFN_PARENT_CHECK_S
+        /* Better-parent checks (the stack's docs/LFN_STACK.md §9), for tests */
+        lfn.parent_check_s = APP_LFN_PARENT_CHECK_S;
+        lfn.parent_check_weak_s = APP_LFN_PARENT_CHECK_S;
+#endif
         ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
         if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
         tr_info("FAN 1.1 LFN");

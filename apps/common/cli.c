@@ -50,7 +50,7 @@ static void cmd_help(void)
 {
     ns_port_console_printf(
         "commands: status [-v] | ping <ipv6> [count] [size] [interval ms] | udp <ipv6> <text> | heap | tasks |\r\n"
-        "          trace <0-5> [groups] | radio clear | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes | lgtk rotate");
+        "          trace <0-5> [groups] | radio clear | txpower <dBm> | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes | lgtk rotate");
 }
 
 static void cmd_heap(void)
@@ -197,6 +197,11 @@ static void execute(char *s)
         } else {
             mbed_trace_include_filters_set(NULL);
         }
+    } else if (!strcmp(argv[0], "txpower") && argc == 2) {
+        /* TX power in dBm (a decimal point allowed), for custom bench
+         * scenarios; RAIL clamps it to the PA's range */
+        int16_t set = rail_phy_tx_power_set((int16_t)(strtof(argv[1], NULL) * 10));
+        ns_port_console_printf("txpower %d.%d dBm\r\n", set / 10, (set < 0 ? -set : set) % 10);
     } else if (!strcmp(argv[0], "radio") && argc == 2 && !strcmp(argv[1], "clear")) {
         rail_phy_clear_stats();
         ns_port_clear_stats();

@@ -65,6 +65,19 @@ void udp_test_init(void)
     if (udp_sid < 0) {
         tr_err("UDP socket open failed: %d", udp_sid);
     }
+#ifdef APP_LFN_MC_GROUP
+    /* FW_LFN_MC_GROUP: the LFN registers the group with its parent (RFC 9685,
+       the stack's docs/LFN_STACK.md §4), which copies its packets to it */
+    else {
+        ns_ipv6_mreq_t mreq = { .ipv6mr_interface = g_node.ws_if };   /* no route to it before the join */
+        if (!stoip6(APP_LFN_MC_GROUP, strlen(APP_LFN_MC_GROUP), mreq.ipv6mr_multiaddr)) {
+            tr_err("FW_LFN_MC_GROUP: bad address %s", APP_LFN_MC_GROUP);
+        } else {
+            tr_info("joining %s: %d", APP_LFN_MC_GROUP,
+                    socket_setsockopt(udp_sid, SOCKET_IPPROTO_IPV6, SOCKET_IPV6_JOIN_GROUP, &mreq, sizeof(mreq)));
+        }
+    }
+#endif
 }
 
 int udp_test_send(const uint8_t addr[16], const char *text)

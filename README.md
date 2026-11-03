@@ -595,7 +595,7 @@ Three kits: border router – FFN router – LFN, EU mode 3. The stack side is t
 | --- | --- | --- |
 | `FW_LFN_PARENT=ON` | `wisun_br` | FAN 1.1, LFN parenting, 7-entry MAC key table (above) |
 | `FW_RN_LFN_PARENT=ON` | `wisun_rn` | The same for the router: FAN 1.1, the LFN settings' defaults, `ws_management_lfn_parent_set()`, 7-entry key table. The router parents LFNs once it is operational and holds an LGTK. Its border router needs `FW_LFN_PARENT` |
-| `FW_TEST_MAC_ALLOW=<EUI-64>` | `wisun_lfn` | **Test only.** The LFN accepts frames only from this EUI-64 (16 hex digits, no separators); every other source is dropped in the MAC before the stack sees it. Empty (default): off. Configure prints a warning and the LFN logs `TEST MODE` at boot |
+| `FW_TEST_MAC_ALLOW=<EUI-64>[,<EUI-64>...]` | `wisun_lfn` | **Test only.** The LFN accepts frames only from these EUI-64s (16 hex digits each, comma-separated, at most 4); every other source is dropped in the MAC before the stack sees it. Empty (default): off. Configure prints a warning and the LFN logs `TEST MODE` at boot |
 
 ```bash
 cmake --preset fw-mode3 -B build/fw-mesh -DFW_LFN_PARENT=ON -DFW_RN_LFN_PARENT=ON \
@@ -690,6 +690,43 @@ Our LFN under our border router, EU mode 1a, +10 dBm, LFN broadcast interval 10 
 | Idle current, range (mean) | 66.8–70.8 µA (69.1) | 41.3–44.5 µA (42.8) | 25.8–27.3 µA (26.3) | 20.4–21.2 µA (20.8) | 17.3–17.9 µA (17.6) | 16.3–17.2 µA (16.7) |
 
 Above about 10 s the LFN broadcast slots (every 10 s), the sync frame (every 50 s) and the deep-sleep floor dominate.
+
+## LFN multicast subscriptions, better parent and weak link on the kits (2026-11-03)
+
+Four kits, EU mode 3 (class 2, 150 kbit/s), stack `aada047`/`be7481c` (then the merge `edd1a1e` for the weak-link run), over the air on a desk:
+
+| Kit (J-Link) | Board | Role |
+| --- | --- | --- |
+| 440240046 | BRD4271A on BRD4001A (AEM does not measure) | `wisun_br`, `FW_LFN_PARENT` |
+| 440235475 | BRD4270B on BRD4001A (AEM does not see the radio) | router 1, `wisun_rn`, `FW_RN_LFN_PARENT`, EUI-64 `b4:35:22:ff:fe:98:23:48` |
+| 440290182 | **new:** BRD4271A A06 on BRD4002A (Wireless Pro Kit mainboard), EUI-64 `b4:35:22:ff:fe:98:2c:1e` | router 2, `wisun_rn`, `FW_RN_LFN_PARENT` |
+| 440235509 | BRD4271A on BRD4001A (AEM ok) | our LFN, `wisun_lfn` (test builds below) |
+
+**New options and commands.**
+
+| Option / command | Image | Effect |
+| --- | --- | --- |
+| `FW_LFN_MC_GROUP=<IPv6 group>` | `wisun_lfn` | The LFN joins the group on its UDP test socket (port 1234), on the Wi-SUN interface; the stack registers it with the parent (RFC 9685, EARO with P = 1; the stack's `docs/LFN_STACK.md` §4) and answers each datagram to it with `ack:<text>` |
+| `FW_LFN_PARENT_CHECK_S=<s>` | `wisun_lfn` | Better-parent check interval (`parent_check_s` and `parent_check_weak_s`; defaults 6 h and 1 h, `LFN_STACK.md` §9). Each check logs the parent's smoothed RSL |
+| `FW_TX_POWER_DDBM=<deci-dBm>` | all | Fixed TX power (default 100: +10 dBm) |
+| CLI `txpower <dBm>` | all | TX power now and for later requests; RAIL clamps it (the minimum on these boards in this PHY: −15.0 dBm) and the console prints the power set |
+| `FW_TEST_MAC_ALLOW=<EUI-64>,<EUI-64>` | `wisun_lfn` | Now up to 4 EUI-64s |
+
+`tests/hw/run_hw_lfn4.sh <workdir>` (`BR_SN`, `R1_SN`, `R2_SN`, `LFN_SN`): cold boot of the border router and the routers, the LFN once router 1 holds an LGTK (its reset is retried until the boot banner appears: a kit in EM2 can miss it); then `ROUNDS` rounds, one every `PERIOD` s, of a datagram from the border router to `GROUP` and one to the LFN's address, each answered by the LFN; it counts the answers and lists the LFN's parent changes and checks. `TXP_BR`, `TXP_R1`, `TXP_R2` set TX powers; `R2_LATE=1` resets router 2 only once the LFN has joined, `R2_LATE=2` raises the TX power of the router the LFN did not choose (`R1_EUI`) to `R2_TXP_LATER` (a TX power scenario).
+
+**Multicast subscriptions** (LFN `FW_TEST_MAC_ALLOW=<router 1>`, `FW_LFN_MC_GROUP=ff05::1234`, so the LFN is under router 1; the border router sends to `ff05::1234`, which reaches router 1 by MPL; LFN at −19 dBm from router 1): 3 runs of 20 rounds, **60 of 60** group datagrams answered by the LFN, 60 of 60 unicast. The LFN registered `ff03::1` and `ff05::1234` with router 1 right after its address. Control, an LFN without the group (same build otherwise): **0 of 10** group datagrams, 10 of 10 unicast.
+
+**Router fixes found on the kits** (stack, `LFN_STACK.md` §9): a router rebooted with its keys from flash never fetched the border router's new LGTK (LGTKs are not stored), so it never parented LFNs; after the fix, router 1 got its LGTK 0–29 s after its join (8 runs); router 2, reset while the network ran, took 87 s once and 560 s once: in the slow case its key request went out at 73 s but the border router's handshake was refused by the router's supplicant ("Incoming KMP rejected, auth not ongoing"), and the LGTK came with a later retry. Left open. After `nvm erase` on a router, the running border router keeps its old frame counter for it and drops its frames (join state 4 for minutes, the frame-counter gap noted above); the test scripts do not erase routers.
+
+**Better parent** (LFN `FW_TEST_MAC_ALLOW=<router 1>,<router 2>`, `FW_LFN_PARENT_CHECK_S=120`, `APP_DEVICE_MIN_SENS=129` (−45 dBm) so that the candidate threshold, −35 dBm, falls inside the RSL range a desk allows; router 1 at −15 dBm, the minimum: the LFN hears it at −33 to −43 dBm). 4 runs, 9–36 rounds each, unicast **all answered** (157 of 157), no parent loss, every check logged; but **no move was observed**:
+- run 1: router 2 (reset after the LFN joined, keys from flash) got its LGTK only 560 s later (the slow case above) and answered no check in time;
+- run 2: router 2 erased (`nvm erase`) never became operational (frame counters, above);
+- run 3: both routers at −15 dBm, the LFN chose router 2, which was then raised to +10 dBm: its parent became strong (−22 dBm) and router 1 weak (−35 dBm), and the check correctly kept it ("not better");
+- run 4: the LFN chose router 1 (−36 dBm, weak), router 2 raised to +10 dBm and ready (LGTK 87 s after its reset); in two checks router 2 received the LPAS and sent its LPA, but the LFN did not log it (router 1's LPA was heard). Not explained: an LPA from a router at +10 dBm missed by the 10-slot window of a check. The emulator's 14 checks heard the new router 10 times (`LFN_STACK.md` §9).
+
+The move itself (switch, release, no loss) is verified in the emulator only.
+
+**S7 weak link** (LFN `FW_TX_POWER_DDBM=-150`, `FW_TEST_MAC_ALLOW=<router 1>`, `FW_LFN_PARENT_CHECK_S=300` for the RSL log; router 1 `txpower -15`; images from the merged stack `edd1a1e`): with both ends at the minimum TX power, −15 dBm, the LFN hears router 1 at **−35 dBm** (LPA at the join, and the smoothed RSL of the sync frames at both checks), about 60 dB above the sensitivity of mode 3. 1 run of 10 min: joined, kept its parent, **60 of 60** border router → LFN datagrams answered (both directions). **Near-sensitivity was not reached:** on a desk, over the air, the TX power alone cannot lower the RSL below about −35 dBm; a weak link needs attenuators or a cabled setup (the MTS bench) or distance. A second run at the same RSL would add nothing, so none was made; S7 near sensitivity stays open.
 
 ## Design notes
 

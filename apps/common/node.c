@@ -214,33 +214,46 @@ void node_lfn_parent_configure(void)
     tr_info("FAN 1.1, LFN parenting on");
 }
 
-void node_test_mac_allow(const char *eui64_hex)
+void node_test_mac_allow(const char *eui64_list)
 {
-    uint8_t eui64[8];
+    uint8_t eui64[4][8];
+    int n = 0;
     mlme_set_t req = { 0 };
     mlme_request_mac_filter_start_t start = { .lqi_m = 0, .lqi_add = 0, .dbm_m = 0, .dbm_add = 0 };
     mlme_request_mac_filter_add_long_t allow = { .lqi_m = 0x100, .lqi_add = 0, .dbm_m = 0x100, .dbm_add = 0 };
 
-    for (int i = 0; i < 8; i++) {
-        unsigned v;
-        if (strlen(eui64_hex) != 16 || sscanf(eui64_hex + 2 * i, "%2x", &v) != 1) {
-            tr_err("FW_TEST_MAC_ALLOW: '%s' is not 16 hex digits, no filter", eui64_hex);
+    /* 16 hex digits per EUI-64, comma-separated, at most 4 */
+    for (const char *p = eui64_list; *p && n < 4; n++) {
+        for (int i = 0; i < 8; i++) {
+            unsigned v;
+            if (sscanf(p + 2 * i, "%2x", &v) != 1) {
+                tr_err("FW_TEST_MAC_ALLOW: '%s' is not a list of 16-hex-digit EUI-64s, no filter", eui64_list);
+                return;
+            }
+            eui64[n][i] = v;
+        }
+        p += 16;
+        if (*p == ',') {
+            p++;
+        } else if (*p) {
+            tr_err("FW_TEST_MAC_ALLOW: '%s' is not a list of 16-hex-digit EUI-64s, no filter", eui64_list);
             return;
         }
-        eui64[i] = v;
     }
-    /* Default: every source blocked (MAC_FILTER_BLOCKED); this EUI-64 passes
+    /* Default: every source blocked (MAC_FILTER_BLOCKED); these EUI-64s pass
      * unchanged (MAC_FILTER_ALLOWED). Frames without a source address pass. */
     req.attr = macFilterStart;
     req.value_pointer = &start;
     req.value_size = sizeof(start);
     g_node.mac->mlme_req(g_node.mac, MLME_SET, &req);
-    memcpy(allow.mac64, eui64, 8);
-    req.attr = macFilterAddLong;
-    req.value_pointer = &allow;
-    req.value_size = sizeof(allow);
-    g_node.mac->mlme_req(g_node.mac, MLME_SET, &req);
-    tr_warn("TEST MODE: frames accepted only from %s (FW_TEST_MAC_ALLOW)", trace_array(eui64, 8));
+    for (int k = 0; k < n; k++) {
+        memcpy(allow.mac64, eui64[k], 8);
+        req.attr = macFilterAddLong;
+        req.value_pointer = &allow;
+        req.value_size = sizeof(allow);
+        g_node.mac->mlme_req(g_node.mac, MLME_SET, &req);
+        tr_warn("TEST MODE: frames accepted from %s (FW_TEST_MAC_ALLOW)", trace_array(eui64[k], 8));
+    }
 }
 
 void node_print_status(bool verbose)

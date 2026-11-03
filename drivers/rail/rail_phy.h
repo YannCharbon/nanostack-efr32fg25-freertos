@@ -70,6 +70,8 @@ struct rail_phy_stats {
 };
 void rail_phy_get_stats(struct rail_phy_stats *st);
 void rail_phy_clear_stats(void);
+/* TX power now and for later requests (deci-dBm; RAIL clamps it); returns the power set */
+int16_t rail_phy_tx_power_set(int16_t ddbm);
 
 #ifdef __cplusplus
 }

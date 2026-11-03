@@ -69,6 +69,8 @@
 /* ------------------------------------------------------------------ state */
 
 static RAIL_Handle_t rh;
+static int16_t tx_power_override;
+static bool tx_power_override_set;
 static phy_device_driver_s drv;
 static int8_t drv_id = -1;
 static uint8_t mac64[8];
@@ -805,8 +807,11 @@ static int8_t phy_extension(phy_extension_type_e type, uint8_t *data)
 #else
             int16_t ddbm = tx_power_from_percent(*data);
 #endif
+            if (tx_power_override_set) {
+                ddbm = tx_power_override;
+            }
             if (RAIL_SetTxPowerDbm(rh, ddbm) == RAIL_STATUS_NO_ERROR) {
-                stats.tx_power_ddbm = ddbm;
+                stats.tx_power_ddbm = RAIL_GetTxPowerDbm(rh);
             }
             tr_info("TX power %u%% -> %d.%d dBm", *data, ddbm / 10, (ddbm < 0 ? -ddbm : ddbm) % 10);
             break;
@@ -985,6 +990,19 @@ void rail_phy_get_stats(struct rail_phy_stats *st)
     *st = stats;
     st->channel = cur_channel;
     st->cca_threshold_dbm = cca_threshold_dbm;
+}
+
+/* TX power now (deci-dBm, CLI 'txpower'), also for later SET_TX_POWER
+ * requests: the bench's custom scenarios (weak links, forced topologies).
+ * RAIL clamps it to what the PA can do; returns the power set. */
+int16_t rail_phy_tx_power_set(int16_t ddbm)
+{
+    tx_power_override = ddbm;
+    tx_power_override_set = true;
+    if (RAIL_SetTxPowerDbm(rh, ddbm) == RAIL_STATUS_NO_ERROR) {
+        stats.tx_power_ddbm = RAIL_GetTxPowerDbm(rh);
+    }
+    return stats.tx_power_ddbm;
 }
 
 void rail_phy_clear_stats(void)
