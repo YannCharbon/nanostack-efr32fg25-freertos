@@ -23,6 +23,7 @@ and multicast answered, rejoins), 1 otherwise; the failures are listed in
 results.json ("failures").
 """
 import argparse
+import datetime
 import json
 import os
 import random
@@ -224,9 +225,13 @@ class Run:
                 if self.a.mode == "p2w":
                     # wsbrd copies ff02::1 to an LFN as a MAC unicast (registered groups too); our
                     # LFN answers the copy's source, wsbrd itself: count its echo replies (pcap)
+                    # ping puts its send time in the payload, echoed in the reply: the replies
+                    # are matched to their request in wsbrd's pcap, which it writes with a
+                    # delay, so they are counted once wsbrd has stopped (recount_mc)
                     t_send = time.time()
-                    subprocess.run(["ping", "-6", "-c", "1", "-w", "15", "-I", "tunlfn", g], capture_output=True, text=True)
-                    ok = self.lfn_echo_replies(t_send, time.time()) > 0
+                    subprocess.run(["ping", "-6", "-c", "1", "-w", "15", "-I", "tunlfn", g],
+                                   capture_output=True, text=True)
+                    self.res.setdefault("mc_windows", []).append((g, i, t_send, time.time()))
                 else:
                     p = L.size(self.d, "br")
                     L.send(self.d, "br", f"ping {g} 1 32 1000" if self.a.mode == "p3" else f"wisun ping {g}")
@@ -237,18 +242,53 @@ class Run:
                 time.sleep(random.uniform(3, 6))
         self.save()
 
-    def lfn_echo_replies(self, t0, t1):
+    def recount_mc(self):
+        """p2w: the LFN's echo replies per multicast request, from the complete pcap."""
+        drops = []
+        log = os.path.join(self.d, "wsbrd.log")
+        if os.path.exists(log):
+            for l in open(log, errors="replace"):
+                mm = re.match(r"(\d+\.\d+): drop tun\s*: unsupported dst=(\S+)", l)
+                if mm:
+                    drops.append((float(mm.group(1)), mm.group(2)))
+        tail = max((w[3] for w in self.res.get("mc_windows", [])), default=0) + 30
+        for g, i, t0, t1 in self.res.get("mc_windows", []):
+            n = self.lfn_echo_replies(t0, tail, sent=t0)
+            dropped = any(g == dg and t0 - 1 <= t <= t1 + 1 for t, dg in drops)
+            for m in self.res["mc"]:
+                if m["group"] == g and m["i"] == i:
+                    # wsbrd only forwards from its TUN the groups it knows (ff02::1, ff03::1, the
+                    # groups it joined itself): a request it dropped says nothing about the LFN
+                    m["lfn_replied"] = None if dropped else n > 0
+                    m["replies"] = n
+                    m["wsbrd_dropped"] = dropped
+            print(f"  multicast {g} {i}: LFN echo replies in wsbrd's pcap: {n}"
+                  f"{' (wsbrd dropped the request at its TUN)' if dropped else ''}", flush=True)
+
+    def lfn_echo_replies(self, t0, t1, sent=None):
+        """The LFN's echo replies seen by wsbrd between t0 and t1; with sent, only the replies to
+        the request sent then (ping's send time, echoed in the payload, within 2 s)."""
         pcaps = sorted(f for f in os.listdir(self.d) if f.startswith("wsbrd_") and f.endswith(".pcapng"))
         if not pcaps:
             return 0
         out = subprocess.run([W.TSHARK if hasattr(W, "TSHARK") else os.path.join(L.DEPS, "tshark/tshark.sh"), "-r",
                               os.path.join(self.d, pcaps[-1]), "-T", "fields", "-e", "frame.time_epoch", "-e", "wpan.src64",
-                              "-e", "icmpv6.type"], capture_output=True, text=True).stdout
+                              "-e", "icmpv6.type", "-e", "icmpv6.data_time"], capture_output=True, text=True).stdout
         n = 0
         for l in out.splitlines():
-            f = l.split("\t")
-            if len(f) == 3 and f[2] == "129" and f[1].endswith("2e:a6") and t0 <= float(f[0]) <= t1 + 1:
-                n += 1
+            f = l.split("\t") + [""]
+            if f[2] == "129" and f[1].endswith("2e:a6") and t0 <= float(f[0]) <= t1 + 1:
+                if sent is None:
+                    n += 1
+                    continue
+                try:
+                    # e.g. 2026-11-04T03:46:54.416603000+0100 (or ...Z)
+                    tz = "+00:00" if f[3].endswith("Z") else f[3][-5:-2] + ":" + f[3][-2:]
+                    ts = datetime.datetime.fromisoformat(f[3][:26] + tz).timestamp()
+                except ValueError:
+                    continue
+                if sent - 0.5 <= ts <= sent + 2.0:
+                    n += 1
         return n
 
     def aem(self, n):
@@ -346,7 +386,7 @@ class Run:
             if p["rtt_s"] is None:
                 self.fail(f"ping {p['way']} {p.get('i', p.get('phase', ''))} at {p['t']:.0f}: no answer")
         for m in self.res["mc"]:
-            if not m["lfn_replied"]:
+            if m["lfn_replied"] is False:
                 self.fail(f"multicast {m['group']} {m['i']}: no answer from the LFN")
         for r in self.res.get("lfn_resets", []):
             if r["rejoin_s"] is None:
@@ -380,6 +420,9 @@ def main():
     rc = 1
     try:
         r.main()
+        if a.mode == "p2w" and r.res.get("mc_windows"):
+            W.stop_wsbrd(r.d)
+            r.recount_mc()
         rc = r.verdict()
     finally:
         r.save()
