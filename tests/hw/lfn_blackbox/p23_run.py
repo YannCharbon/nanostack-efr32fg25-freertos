@@ -11,7 +11,7 @@ Our LFN (wisun_lfn, kit A) under our border router (wisun_br, FW_LFN_PARENT, kit
   ours
 
 usage: p23_run.py {p2w,p2e,p3,ours} DIR [--reps N] [--pings N] [--aem N] [--aem-s S] [--restart]
-                  [--rotate] [--mc] [--lfn-resets N] [--timeout S]
+                  [--rotate] [--mc] [--groups G1,G2] [--lfn-resets N] [--timeout S]
 Every rep is a cold join (parent restarted with a new PAN for p2w), followed by --pings
 pings each way (one at a time, 6-9 s apart), the multicast pings (--mc), --aem idle
 windows of 60 s on kit A's AEM (after the last rep), a parent restart (--restart) and an
@@ -276,7 +276,7 @@ class Run:
             time.sleep(35)        # our LFN's traces go quiet 30 s after its join
             self.pings(a.pings)
         if a.mc:
-            self.multicast()
+            self.multicast(tuple(g for g in a.groups.split(",") if g))
         if a.aem:
             time.sleep(10)
             self.aem(a.aem)
@@ -364,6 +364,8 @@ def main():
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--pings", type=int, default=0)
     ap.add_argument("--mc", action="store_true")
+    ap.add_argument("--groups", default="ff02::1,ff03::1",
+                    help="multicast groups pinged with --mc (comma-separated), e.g. a group the LFN registered (RFC 9685)")
     ap.add_argument("--aem", type=int, default=0)
     ap.add_argument("--restart", action="store_true")
     ap.add_argument("--lfn-resets", type=int, default=0)

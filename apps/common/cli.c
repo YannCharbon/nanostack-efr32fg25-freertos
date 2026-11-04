@@ -50,7 +50,7 @@ static void cmd_help(void)
 {
     ns_port_console_printf(
         "commands: status [-v] | ping <ipv6> [count] [size] [interval ms] | udp <ipv6> <text> | heap | tasks |\r\n"
-        "          trace <0-5> [groups] | radio clear | txpower <dBm> | reset%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes | lgtk rotate");
+        "          trace <0-5> [groups] | radio clear | txpower <dBm> | reset | halt%s\r\n", strcmp(app_role_name, "BR") ? "" : " | nodes | lgtk rotate");
 }
 
 static void cmd_heap(void)
@@ -213,6 +213,14 @@ static void execute(char *s)
             cmd_pstats();
         }
 #endif
+    } else if (!strcmp(argv[0], "halt")) {
+        /* Test: leave the network at once and stay silent until a reset
+           (a kit whose target supply cannot be switched off) */
+        ns_port_console_printf("halted: radio idle, stack stopped until a reset\r\n");
+        rail_phy_halt();
+        for (;;) {      /* the stack task: notifications taken, nothing run */
+            (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        }
     } else if (!strcmp(argv[0], "reset")) {
         NVIC_SystemReset();
 #ifdef FW_FLASH_FS

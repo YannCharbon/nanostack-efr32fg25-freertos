@@ -76,6 +76,24 @@ kit_reset() {
     return 1
 }
 
+# kit_off <name>: the kit leaves the network until kit_on: target supply
+# off, or, where the adapter cannot switch it (BRD4002A), CLI 'halt' (radio
+# idle, stack stopped; the FFN images only)
+kit_off() {
+    commander adapter power -s "${HW_SN[$1]}" off >/dev/null 2>&1 && return 0
+    local o; o=$(logsize "$1")
+    send "$1" "halt"
+    waitfor "$1" "halted:" 10 "$o" >/dev/null && return 0
+    fail "$1: could not take it off the network"; return 1
+}
+# kit_on <name>: supply on, boot banner checked; records the new log offset
+kit_on() {
+    local o; o=$(logsize "$1")
+    commander adapter power -s "${HW_SN[$1]}" on >/dev/null 2>&1
+    if waitfor "$1" "$BANNER" 15 "$o" >/dev/null; then HW_OFF[$1]=$o; return 0; fi
+    kit_reset "$1"
+}
+
 # mark_reset <name>: the kit resets itself now (CLI 'nvm erase'); record the
 # offset, then call expect_boot <name>
 mark_reset() { HW_OFF[$1]=$(logsize "$1"); }

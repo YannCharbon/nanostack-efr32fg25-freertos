@@ -858,6 +858,12 @@ int rail_phy_sleep_init(void)
 
 /* ------------------------------------------------------------------ init */
 
+/* Test: stop the radio for good (CLI 'halt'); a reset brings the node back */
+void rail_phy_halt(void)
+{
+    RAIL_Idle(rh, RAIL_IDLE_ABORT, true);
+}
+
 void rail_phy_get_eui64(uint8_t eui64[8])
 {
     uint64_t u = SYSTEM_GetUnique();

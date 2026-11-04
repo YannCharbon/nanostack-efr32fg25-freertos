@@ -6,8 +6,8 @@
 # FW_LFN_MC_GROUP, FW_LFN_PARENT_CHECK_S, FW_TX_POWER_DDBM). The images are
 # flashed beforehand; this script resets the kits and drives the consoles.
 #
-# Cold boot: BR, then the routers (R2_LATE=1: router 2 only once the LFN has
-# joined, a better parent that appears later); when router 1 holds an LGTK,
+# Cold boot: BR, then the routers (R2_LATE=1: router 2 switched off (target
+# supply) until the LFN has joined, a better parent that appears later); when router 1 holds an LGTK,
 # the LFN. TXP_R1, TXP_R2, TXP_BR: TX power (dBm, CLI txpower) set on that
 # kit once its console runs. Then ROUNDS rounds, one every PERIOD s: from the
 # border router a UDP datagram to GROUP (with GROUP set) and one to the LFN's
@@ -49,7 +49,7 @@ txp br "${TXP_BR:-}"
 sleep 3
 kit_reset r1 || hw_exit
 txp r1 "${TXP_R1:-}"
-[ "$R2_LATE" = 1 ] || { kit_reset r2; txp r2 "${TXP_R2:-}"; }
+if [ "$R2_LATE" = 1 ]; then kit_off r2; else kit_reset r2; txp r2 "${TXP_R2:-}"; fi
 t=$(waitfor r1 "if 1: ARM_NWK_BOOTSTRAP_READY" 900) || { fail "router 1 join"; hw_exit; }
 echo "router 1 joined ${t}s after its reset"
 if t2=$(waitfor r1 "LGTK recv\|LGTK set" 300); then echo "router 1 LGTK ${t2}s after its join"; else fail "router 1 LGTK"; fi
@@ -75,9 +75,13 @@ if [ "$R2_LATE" = 2 ]; then
 elif [ "$R2_LATE" = 1 ]; then
     # R2_ERASE=1: forget its stored keys (CLI nvm erase, which resets it):
     # a full join, as a new router
-    if [ "${R2_ERASE:-0}" = 1 ]; then mark_reset r2; send r2 "nvm erase"; expect_boot r2; else kit_reset r2; fi
+    # router 2 was off until now (target supply); on, with its stored keys,
+    # or R2_ERASE=1: forgets them
+    kit_on r2
+    if [ "${R2_ERASE:-0}" = 1 ]; then sleep 2; mark_reset r2; send r2 "nvm erase"; expect_boot r2; fi
     txp r2 "${TXP_R2:-}"
-    echo "router 2 reset at $(date +%s) (appears later)"
+    echo "router 2 on at $(date +%s) (appears later)"
+    if t3=$(waitfor r2 "LGTK recv\|LGTK set" 600); then echo "router 2 LGTK ${t3}s after it was switched on"; else fail "router 2 LGTK"; fi
 fi
 o=$(logsize br)
 for i in $(seq 1 "$ROUNDS"); do

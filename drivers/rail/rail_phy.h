@@ -31,6 +31,8 @@ int rail_phy_sleep_init(void);
 
 /* The factory EUI-64 of this chip (DEVINFO), MSB first. */
 void rail_phy_get_eui64(uint8_t eui64[8]);
+/* Test: radio idle for good (CLI 'halt') */
+void rail_phy_halt(void);
 
 /* Warn (via the returned count) about RAIL IRQs that FreeRTOS critical
  * sections cannot mask (priority numerically < configMAX_SYSCALL_INTERRUPT_PRIORITY). */
