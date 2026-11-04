@@ -804,7 +804,8 @@ reset), the network ran for 180 s, then the router alone was reset: 1 run.
 - its key request (EAPOL-Key, `LGTKL 0`) went out at 85.0 s, and the LGTK
   was installed at **88.8 s**.
 
-The slow case did not occur in this run.
+The slow case did not occur in this run. With stack `443185c` it did not
+occur in 15 runs ([2026-11-04](#stack-fixes-checked-on-the-kits-stack-443185c-2026-11-04)).
 
 **It occurred again in another case**, the cold start of
 `run_hw_mesh.sh` (the same images, right after): the border router reset,
@@ -893,7 +894,73 @@ cost only about 0.1 µA; its excess over the other kit is its floor.
 105 s after the request (the frame missed one window), and in one boot of 6
 where kit 440235509 chose the router as parent, no ping or UDP datagram from
 the border router reached it in 5 min (the measurement windows are not
-affected). Not investigated here.
+affected). Neither recurred with stack `443185c` (60 of 60,
+[2026-11-04](#stack-fixes-checked-on-the-kits-stack-443185c-2026-11-04)).
+
+## Stack fixes checked on the kits (stack `443185c`, 2026-11-04)
+
+EU mode 3, +10 dBm, kits side by side, every kit mass-erased before its
+first image. Border router 440240046 (`FW_LFN_PARENT`), routers 440235475 and
+440290182 (`FW_RN_LFN_PARENT`), our LFN on 440235509 (and 440290182 where
+said). Scripts: `tests/hw/run_hw_lfn_dl.sh`, `run_hw_lgtk.sh`,
+`run_hw_lfn4.sh`, `lfn_blackbox/p23_run.py`.
+
+**Downlink with a 60 s listen interval** (the earlier 105 s replies and the
+5 min without downlink under a router): 6 cold boots, LFN 440235509 forced
+under router 440235475, LFN 440290182 free to choose (it chose the border
+router in 5 boots, the router in 1); 5 UDP datagrams 70 s apart per LFN and
+boot. **60 of 60 answered**, none twice; latencies 0.6–60.0 s, never above
+one listen interval (the wait for the LFN's next window). Neither earlier
+finding recurred.
+
+**A router's LGTK** (the 520–560 s case): 9 cold starts (border router, then
+the router 3 s later, keys in flash) and 6 resets of the router alone while
+the network ran (3 with `run_hw_lgtk.sh`, 3 in the router restart runs below).
+LGTK 36.6–125.9 s after a cold start and 50.4–93.7 s after a reset (the
+router's uptime); no refused handshake. A key request made during
+the join is lost at the MAC ("EAPOL-Key send failed") and sent again at the
+next LGTK hash mismatch, which comes with the next PAN configuration: up to
+29 s after the router is operational (the 125.9 s case).
+
+**Router restart without a key change** (frame counters): LFN 440235509
+(listen 5 s) under router 440235475, 8 datagrams 30 s apart, the router reset
+before the 4th; 3 runs. The router reads its stored frame counters at boot
+(with the stack's margin: 15 000 000 for the GTKs, 16 000 000 for the LGTK),
+so no replay drop: the LFN kept its keys and did not authenticate again. It
+did lose its parent's schedule: its uplinks failed (no ACK), it sent LPAS,
+got an LPA and an LPC from the same router and registered again, and traffic
+resumed **97, 115 and 194 s after the reset** (1, 2 and 3 datagrams lost in
+between; all later ones answered).
+
+**Better-parent move** (LFN `FW_TEST_MAC_ALLOW=<both routers>`,
+`FW_LFN_PARENT_CHECK_S=120`, `APP_DEVICE_MIN_SENS=129`; router 1 at −15 dBm,
+router 2 kept out of the network until the LFN had joined: CLI `halt`, since
+the BRD4002A kit's supply cannot be switched off, then a reset; 40 datagrams
+15 s apart): 3 of 3 runs moved. The LFN chose router 1 at −36/−37 dBm; router 2
+held its LGTK 77–80 s after it came back; the LFN's next check found it at
+−16/−17 dBm, "better", and moved **150, 226 and 238 s after router 2 came back**
+(70–159 s after its LGTK: the wait for the next check). The old parent was
+released 25 s later and acknowledged 10 s after that. **120 of 120 datagrams
+answered**, no loss at the move; later checks kept router 2 ("not better").
+
+**Our LFN under Silicon Labs' `wsbrd` + RCP** (`wsbrd` v2.10.3, `wisun_rcp`
+UART on 440240046; LFN `build/pd-interop`: PHY mode 1, plan 32, group
+`ff03::1234` with `FW_LFN_MC_GROUP`; `p23_run.py p2w --mc --groups
+ff02::1,ff03::1,ff03::1234,ff03::99`), 3 runs: joins 22–43 s, pings down 9 of 9.
+`wsbrd` accepted the address registration with EARO and TID ("ns w/ earo",
+lifetime 129600 s) and the RFC 9685 group registrations (`ff03::1`,
+`ff03::1234`, and `ff05::1234` in a first run): each listed in its neighbour
+table for the LFN's EUI-64. `ff02::1` and `ff03::1` (registered) were
+delivered: **9 of 9 each**, matched to their request. `ff03::1234` and
+`ff03::99` could not be tested from the host: `wsbrd` drops at its TUN every
+group it has not joined itself ("drop tun: unsupported dst"), and its D-Bus
+`JoinMulticastGroup` is not available with file capabilities
+(`lfn_blackbox/README.md`).
+
+**Overnight idle run** (started 2026-11-04 04:02, results to come): border
+router, router 440235475, our LFNs 440235509 and 440290182 under it (default
+LFN settings: listen 5 s, LFN broadcast slots 10 s, sync 50 s), 16 datagrams
+after silences of 1 min to 2 h, AEM windows of 60 s every 30 min on 440235509.
 
 ## Design notes
 
@@ -1032,6 +1099,11 @@ affected). Not investigated here.
   - FAN 1.1 LFN: under our border router, and under our routers on three and
     four kits (two hops), with multicast group subscriptions
     ([FAN 1.1 LFN on the kits](#fan-11-lfn-on-the-kits-gs8-stage-6-2026-10-29) and the sections after it);
+  - with stack `443185c`: the LFN's better-parent move (3 of 3), a router's
+    LGTK within about 2 min after a cold start or a reset (15 runs), a router
+    restart without replay drops, downlinks at a 60 s listen interval, the
+    RFC 9685 registrations accepted by `wsbrd`
+    ([2026-11-04](#stack-fixes-checked-on-the-kits-stack-443185c-2026-11-04));
   - interoperability with Silicon Labs' stack in both directions (black-box
     phases 2–3, [above](#interoperability-with-silicon-labs-wi-sun-stack-lfn-black-box-phases-23-2026-10-30-11-02));
   - node loss and rejoin: LFN resets, border router resets and the LFN's
@@ -1041,16 +1113,13 @@ affected). Not investigated here.
     against its listen interval, its EM2 floor and wake figures
     ([below](#lfn-em2-floor-and-wake-figures-2026-11-03)).
 - **Open on hardware:**
-  - **LFN better-parent move:** the checks run and keep a good parent, but no
-    move was observed on the kits (4 runs, [2026-11-03](#lfn-multicast-subscriptions-better-parent-and-weak-link-on-the-kits-2026-11-03));
-    the move itself is verified in the emulator only;
   - **weak link near sensitivity** (S7): on a desk the RSL cannot go below
     about −35 dBm; it needs attenuators (the MTS bench) or distance;
-  - **LGTK after a router reset:** a router can wait about 520–560 s for its
-    LGTK when its border router starts an EAP-TLS that the router's
-    supplicant refuses; seen again with the stack fix `3e94805`
-    ([re-test](#lgtk-after-a-router-reset-re-test-2026-11-03));
-  - long runs: no overnight run yet (runs of 10–20 min per boot);
+  - long runs: an overnight run is in progress (2026-11-04); runs of 10–20 min
+    per boot before;
+  - an LFN loses its parent's schedule when the router restarts: traffic
+    resumes after its LPAS/LPC, 97–194 s after the router's reset
+    ([2026-11-04](#stack-fixes-checked-on-the-kits-stack-443185c-2026-11-04));
   - the NA/BRD4270B variant (902–928 MHz) on hardware: the BRD4270B kit runs
     the EU images only;
   - CCA behaviour against real interference; CCA thresholds and TX power
