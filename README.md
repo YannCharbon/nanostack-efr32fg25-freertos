@@ -957,10 +957,41 @@ group it has not joined itself ("drop tun: unsupported dst"), and its D-Bus
 `JoinMulticastGroup` is not available with file capabilities
 (`lfn_blackbox/README.md`).
 
-**Overnight idle run** (started 2026-11-04 04:02, results to come): border
-router, router 440235475, our LFNs 440235509 and 440290182 under it (default
-LFN settings: listen 5 s, LFN broadcast slots 10 s, sync 50 s), 16 datagrams
+**Overnight idle run** (2026-11-04 04:02–15:14): border router, router
+440235475, our LFNs 440235509 and 440290182 under it (`build/pd-lfnr`: default
+LFN settings, listen 5 s, LFN broadcast slots 10 s, sync 50 s), 16 datagrams
 after silences of 1 min to 2 h, AEM windows of 60 s every 30 min on 440235509.
+440235509 answered **16 of 16**, 440290182 **15 of 16**: it missed the last
+one, sent after 4000 s of silence (the router's 20 attempts in its slots over
+95 s, on 16 channels, all without ACK), and answered again afterwards
+(checked 2.3 h later). AEM on 440235509: 24.1–25.2 µA (21 windows). Each LFN
+made one parent search during the night (09:29, 12:51), with no loss of
+traffic. The USB link of 440290182's J-Link dropped at 13:46:57 (kernel error
+−71) and its console was lost; the board kept running (its FreeRTOS tick
+count continuous) and the console output is a non-blocking ring.
+
+Cause of the miss (stack `1ee1481`, the stack's `docs/LFN_MAC.md` §2.3): the
+LFN placed its slots from the parent's view of them at its measured clock
+rate over the whole time since its last uplink, and the rate is measured
+again from a new reference every 18 min, over spans down to one sync period
+(50 s); the sync timing error (the router's TX start: ±30 µs, 80 µs once in
+its log) was then up to 1.6 ppm, 6 ms after 4000 s of silence. A RAM capture
+of 440290182 after the run showed its state consistent and its windows still
+opening (9281 windows by slot 9282). The fix counts the parent's time in its
+LFN broadcast slots; reproduced and checked in the stack's unit test and in
+the emulator with timing jitter (`WSSIM_PHY_RX_TS_JITTER_US`).
+
+Kit check of the fix (`build/dl16-lfnr`: stack 443185c with only the fix,
+the options of `pd-lfnr`, on both LFNs; border router and router unchanged):
+both rejoined with their stored keys in 8–10 s, answered a datagram at once,
+and after **53 min of silence answered in their first window** (4.4 and
+4.7 s); no parent search. One silence per LFN is a functional check only:
+the fault came once in 32 downlinks overnight.
+
+Reading an LFN's RAM with `commander readmem` while it runs disturbs it:
+polling both LFNs every 7 s, both missed two sync frames in a row (sent on
+time per the router's log) and made a parent search. Single reads after a
+run are fine; do not poll during runs.
 
 ## Design notes
 
@@ -1115,8 +1146,9 @@ after silences of 1 min to 2 h, AEM windows of 60 s every 30 min on 440235509.
 - **Open on hardware:**
   - **weak link near sensitivity** (S7): on a desk the RSL cannot go below
     about −35 dBm; it needs attenuators (the MTS bench) or distance;
-  - long runs: an overnight run is in progress (2026-11-04); runs of 10–20 min
-    per boot before;
+  - long runs: one overnight run (2026-11-04: 31 of 32 downlinks, the miss
+    fixed in stack `1ee1481`, checked on the kits with one 53 min silence per
+    LFN); a long run with the fix is still to do;
   - an LFN loses its parent's schedule when the router restarts: traffic
     resumes after its LPAS/LPC, 97–194 s after the router's reset
     ([2026-11-04](#stack-fixes-checked-on-the-kits-stack-443185c-2026-11-04));
