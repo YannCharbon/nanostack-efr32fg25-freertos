@@ -993,6 +993,79 @@ polling both LFNs every 7 s, both missed two sync frames in a row (sent on
 time per the router's log) and made a parent search. Single reads after a
 run are fine; do not poll during runs.
 
+## LFN current against the power formula (2026-11-05)
+
+With the default LFN settings (listen 5 s, LFN broadcast slots 10 s, sync
+50 s, EU mode 3, +10 dBm) the kits read about 4 µA more than the power
+formula of the root repo's `LFN_Capabilities_and_Power.md` (17.3 µA with a
+7.0 µA floor). The windows were decomposed one by one in AEM dumps at
+100 kHz on kit 440290182 (`commander aem dump`, 120–240 s each, no RAM read
+within 2 min before), under router 440235475, and at 10 kHz on 440235509.
+
+**Images.** `build/dl16-lfnr` (stack `443185c` + `1ee1481`, the image of
+2026-11-04), `build/gs10-psOFF` (stack `8ca400e`, the same options),
+`build/em2-lfn60-dpd` (stack `edd1a1e`, listen 60 s, widening always 50 ppm)
+and `build/em2-idle-vcomON` (bare EM2), all on the same kit the same morning.
+
+**Widening.** One RAM read of both LFNs (`fhss_ws` state): rate measured
+(−31.1 and −14.8 ppm), residual 0.21 ppm, so the windows widen at the 5 ppm
+floor. In the dumps the radio-on time of the empty windows grows by
+0.48–0.59 ms between two syncs (48 s): 5.0–6.1 ppm each side, and drops at
+each sync frame. With the old image (50 ppm) it grows by 1.04 ms per 10 s
+(52 ppm). The broadcast windows cost 59.5 µC on average with 50 ppm and
+41.1 µC with 5 ppm: the saving the formula predicts (59.1 against 41.6 µC).
+
+**Decomposition** (`build/dl16-lfnr`, 180 s, listen 5 s; µA averaged over
+the dump):
+
+| Part | Formula | Measured | Difference |
+| --- | --- | --- | --- |
+| EM2 floor | 7.0 µA | 8.27 µA | +1.27 µA |
+| Unicast windows, 12 per min | 33.8 µC each, 6.76 µA | 41.1 µC, 8.22 µA | +1.46 µA |
+| Broadcast windows, 6 per min (1 with the sync frame) | 34.1 µC, 3.41 µA | 41.1 µC, sync window 44.6 µC: 4.19 µA | +0.78 µA |
+| Sync frame processing after the window (24 ms later) | in the 2 µC per sync, 0.04 µA | 4.2 µC, 0.09 µA | +0.05 µA |
+| Timer wakes without the radio | 0.07 µA | 59 per min × 0.09 µC: 0.09 µA | +0.02 µA |
+| Short wakes, 0.45 ms at 6.6–7 mA after 0.4 ms of CPU, every 20 s and some more | none | 4 per min × 5.8 µC: 0.38 µA | +0.38 µA |
+| **Total** | **17.28 µA** | **21.24 µA** | **+3.96 µA** |
+
+**An empty window** (mean of 50): wake from EM2 0.33 ms (0.37 µC), CPU
+before the radio starts 0.37 ms at 4.4 mA (1.65 µC), radio on 5.65 ms at a
+median of 6.46 mA, with the CPU active about 1.1 ms of it (+2.5 µC above the
+plateau, 8.2–10.7 mA at the end of the window), teardown 0.11 ms (0.11 µC):
+**41.1 µC**. The formula gives 6.275 mA × 5.25 ms + 0.86 µC = 33.8 µC. The
+difference, 7.3 µC, is the plateau current (+1.0 µC), the radio on 0.40 ms
+longer than the window (+2.6 µC) and the CPU around the window (+4.2 µC);
+the formula's 0.86 µC of set-up, teardown and CPU is too small. A fit over
+105 empty windows of two images gives **6.465 mA × (W + 2w) + 7.2–7.5 µC**.
+The stack's own work in a window wake is about 15 000 cycles (0.16 ms; DWT
+counters of a `FW_POWER_STATS=ON` image read before any debugger access), so
+most of the CPU time around a window is outside the stack (RAIL's radio
+start and stop, the power manager, interrupts): not attributed further.
+
+**Floor.** The bare EM2 image reads 7.78 µA (6.93 µA on 2026-11-03) and the
+LFN floor 8.25–8.32 µA with the old and the new stacks alike, also after a
+reset: the kit's floor moved by about 1.3 µA between the two days, not the
+stack. Kit 440235509 reads 6.1 µA between wakes today (12.3 µA on
+2026-11-03) with the same windows (39.4 µC at a 6.15 mA plateau). Its
+earlier figures, among them "no saving from the 5 ppm floor", compared days
+whose floors differed by several µA. The cause of the variation (temperature,
+the debug power domain with `SL_POWER_MANAGER_INIT_EMU_EM2_DEBUG_ENABLE` 1
+after a debugger access, the boards) is not isolated.
+
+**Check of the corrected formula** (floor as measured, *I_w* 6.465 mA,
+*Q_fix* 7.35 µC, 7.7 µC per sync, the 20 s wakes): 21.30 µA against 21.24 µA
+(`dl16-lfnr`, listen 5 s); 19.96 against 19.97 µA (`gs10-psOFF`, listen 6 s
+before the parent adjusted it); 15.9 against 15.5 µA (old image, 50 ppm,
+90 s); kit 440235509: 18.7 against 18.5 µA.
+
+**Not identified:** the 20 s wakes (in both stacks; not RAIL calibrations:
+the driver's `cal_runs` did not move; the stack's neighbour and destination
+cache collection runs every 20 s), and the 1.02 s timer wakes (the parent's
+FFN broadcast interval; 7 per minute on 2026-11-03 under the border router).
+Each of the three occasions with RAM reads today was followed within 2 min
+by a parent search (twice seen in the dumps, after 80–100 s without a sync
+frame), like the polling of 2026-11-04: keep RAM reads out of measurements.
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority
