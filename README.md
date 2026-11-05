@@ -1071,6 +1071,49 @@ Each of the three occasions with RAM reads today was followed within 2 min
 by a parent search (twice seen in the dumps, after 80–100 s without a sync
 frame), like the polling of 2026-11-04: keep RAM reads out of measurements.
 
+## Housekeeping wakes removed (stack `aa2a828`, 2026-11-05)
+
+The stack no longer wakes for its housekeeping when it has nothing to do
+(`NANOSTACK_PROTOCOL_TIMERS_SKIP_HOUSEKEEPING`, default on; the stack's
+`docs/PORTING.md`, "Housekeeping with nothing to do"): the cache collections
+every 20 s, an LFN's blacklist purge and MLD's query timer. Nothing changes
+in the firmware.
+
+**Images** (EU mode 3, `FW_BOARD_FLASH_DPD=ON`, `FW_FLASH_FS=ON`):
+`build/hk-net` (`wisun_br`, `wisun_rn`; `FW_LFN_PARENT=ON`,
+`FW_RN_LFN_PARENT=ON`), `build/hk-lfnr` (`wisun_lfn`,
+`FW_TEST_MAC_ALLOW=b43522fffe982348`: accepts only router 440235475) and
+`build/hk-lfn` (`wisun_lfn` without it). The presets build too (`fw`:
+`wisun_br`, `wisun_rn`, `wisun_lfn`), as does the host twin (`ffn` and `lfn`
+scenarios passed: pings 10/10 both ways, no assert).
+
+**Kit check** (flashed without erase, keys kept: 440240046 `wisun_br` and
+440235475 `wisun_rn` from `build/hk-net`, 440290182 and 440235509
+`wisun_lfn` from `build/hk-lfnr`; `tests/hw/run_hw_mesh.sh` with LFN
+440290182): router joined 68 s after its reset, LGTK 22 s later; LFN joined
+27 s after its reset, under the router; border router → LFN pings 10 of 10,
+UDP datagram acknowledged, no fault; AEM 19.49 and 19.37 µA (60 s windows).
+
+**Wakes** (AEM dumps at 100 kHz on 440290182, no RAM read, the LFN under
+the router, default LFN settings):
+
+| | Before (`build/gs10-psOFF`, stack `8ca400e`, 180 s) | After (`build/hk-lfnr`, stack `aa2a828`, 240 s) |
+| --- | --- | --- |
+| Wakes without radio activity, about 3 ms, 6 µC | 12: every 20 s and 3 more (4.0 per min) | 4: every 60 s (1.0 per min) |
+| Charge each | 6.06 µC | 6.05 µC |
+| Their current | 0.40 µA | 0.10 µA |
+| Sync-frame processing wakes (4.2–4.4 µC, every 50 s) | 3 | 5 |
+| Mean over the dump | 20.24 µA (floor 8.56 µA; listen interval 6 s, 16 windows per min) | 21.39 µA (floor 8.51 µA; listen interval 5 s after a new join, 18 windows per min) |
+
+The wake left every 60 s is the PAE frame-counter check, which the stack
+keeps (emulator: one a minute, the same period). The means differ because the
+LFN of the "before" dump kept its own 6 s listen interval and the new join
+took the parent's 5 s: compare the timer wakes, not the means.
+
+**Kits left with these images** for the weekend runs of 2026-11-07/08
+(Silicon Labs' Balanced and Eco timers): `build/hk-net` on the border router
+and the router, `build/hk-lfnr` on both LFNs.
+
 ## Design notes
 
 - **Execution model (Phase A).** One stack task (`ns_stack`, priority
