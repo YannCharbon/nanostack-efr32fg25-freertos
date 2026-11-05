@@ -1034,8 +1034,9 @@ median of 6.46 mA, with the CPU active about 1.1 ms of it (+2.5 µC above the
 plateau, 8.2–10.7 mA at the end of the window), teardown 0.11 ms (0.11 µC):
 **41.1 µC**. The formula gives 6.275 mA × 5.25 ms + 0.86 µC = 33.8 µC. The
 difference, 7.3 µC, is the plateau current (+1.0 µC), the radio on 0.40 ms
-longer than the window (+2.6 µC) and the CPU around the window (+4.2 µC);
-the formula's 0.86 µC of set-up, teardown and CPU is too small. A fit over
+longer than the window (+2.6 µC) and the CPU around the window (4.6 µC with
+the wake and the teardown, of which the formula had 0.86 µC: +3.8 µC); the
+formula's 0.86 µC of set-up, teardown and CPU is too small. A fit over
 105 empty windows of two images gives **6.465 mA × (W + 2w) + 7.2–7.5 µC**.
 The stack's own work in a window wake is about 15 000 cycles (0.16 ms; DWT
 counters of a `FW_POWER_STATS=ON` image read before any debugger access), so
@@ -1053,15 +1054,19 @@ the debug power domain with `SL_POWER_MANAGER_INIT_EMU_EM2_DEBUG_ENABLE` 1
 after a debugger access, the boards) is not isolated.
 
 **Check of the corrected formula** (floor as measured, *I_w* 6.465 mA,
-*Q_fix* 7.35 µC, 7.7 µC per sync, the 20 s wakes): 21.30 µA against 21.24 µA
+*Q_fix* 7.35 µC, 7.7 µC per sync, the 20 s wakes): 21.31 µA against 21.24 µA
 (`dl16-lfnr`, listen 5 s); 19.96 against 19.97 µA (`gs10-psOFF`, listen 6 s
 before the parent adjusted it); 15.9 against 15.5 µA (old image, 50 ppm,
-90 s); kit 440235509: 18.7 against 18.5 µA.
+90 s); kit 440235509: 18.75 against 18.50 µA.
 
-**Not identified:** the 20 s wakes (in both stacks; not RAIL calibrations:
-the driver's `cal_runs` did not move; the stack's neighbour and destination
-cache collection runs every 20 s), and the 1.02 s timer wakes (the parent's
-FFN broadcast interval; 7 per minute on 2026-11-03 under the border router).
+**The 20 s wakes** (in both stacks; not RAIL calibrations: the driver's
+`cal_runs` did not move) are the stack's housekeeping, identified the same
+day in the emulator with a `NS_PROTOCOL_TIMERS_SKIP_STATS` build: the
+neighbour and destination cache collection every 20 s, the blacklist purge
+every 30–90 s and MLD's query timer every 125 s, 4.3–4.4 wakes per minute
+on an idle LFN (root repo `LFN_Capabilities_and_Power.md` §6.4). **Not
+identified:** the 1.02 s timer wakes (the parent's FFN broadcast interval;
+7 per minute on 2026-11-03 under the border router).
 Each of the three occasions with RAM reads today was followed within 2 min
 by a parent search (twice seen in the dumps, after 80–100 s without a sync
 frame), like the polling of 2026-11-04: keep RAM reads out of measurements.
