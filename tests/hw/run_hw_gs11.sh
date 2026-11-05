@@ -52,7 +52,11 @@ fi
 join_s() { since_reset "$1" | grep -a -m1 "if 1: ARM_NWK_BOOTSTRAP_READY" | sed -n 's/^[0-9.]* \[\([0-9]*\)\].*/\1/p' | awk '{printf "%.1f", $1 / 1000}'; }
 : > pairs.txt
 for i in $(seq 1 "$PAIRS"); do
-    off=$(kits_reset_together la lb)
+    # not in $(...): kits_reset_together sets the kits' reset offsets
+    # (HW_OFF), which a subshell would lose (join times and waits would then
+    # read the first pair's lines)
+    kits_reset_together la lb > pair_off.txt
+    off=$(grep -m1 "boot offset" pair_off.txt); grep -v "boot offset" pair_off.txt
     ja=none; jb=none
     waitfor la "if 1: ARM_NWK_BOOTSTRAP_READY" "$JOIN_TMO" >/dev/null && ja=$(join_s la)
     waitfor lb "if 1: ARM_NWK_BOOTSTRAP_READY" "$JOIN_TMO" >/dev/null && jb=$(join_s lb)
