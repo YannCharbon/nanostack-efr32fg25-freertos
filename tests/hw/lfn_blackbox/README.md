@@ -16,6 +16,7 @@ Scripts for the black-box test of Silicon Labs' FAN 1.1 LFN on the two kits (roo
 | `s6_lgtk_fast.conf`, `s5_sync1.conf`, `s5_sync2.conf` | `wsbrd` settings appended with `--extra`: LGTK rotation in minutes, LFN sync period 1 or 2 |
 | `tshark_keys.py` | Wireshark key table (GAKs from the (L)GTKs and the network name), so tshark decrypts the PTI pcaps |
 | `lfn_cli_test_profiles.patch` | Change to the `wisun_soc_lfn_cli` sample (generated in `.deps/lfn_build/`): extra profiles `test_short` (Test, registration lifetime 5 min), `eco_short` (Eco, unicast 30 s, short DHCP delay, lifetime 10 min), `test_mpt20` (Test, `lfn_maintain_parent_time` 20) |
+| `s8_run.py`, `s8_balanced.conf`, `s8_eco.conf` | S8 with Silicon Labs' real Balanced or Eco profile: their LFN configured, power-cycled and joined under our border router (`FW_LFN_PROFILE` image) or under `wsbrd` (the profile's LFN broadcast schedule); downlinks and uplinks awaited one listen interval, AEM windows and dumps; `--dry-run` (weekend campaign, `../WEEKEND_2026-11-07.md`) |
 | `rtt.sh`, `ts.py` | RTT console attempt, time-stamping helper |
 
 Tools are looked up in the root repo's `.deps/` (override with `DEPS`, `SILINK`, `WSBRD`); `AEM_SN` selects the kit whose AEM is read (default 440235509, the kit with a working AEM). `silink` must be closed on a kit while Commander uses it.

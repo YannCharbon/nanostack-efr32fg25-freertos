@@ -372,7 +372,22 @@ same way):
 - answers are counted as distinct sequence numbers or datagrams, so a
   repeated line cannot hide a missing one;
 - each script prints PASS/FAIL lines and `RESULT:`, and exits with 0 only if
-  every check passed.
+  every check passed;
+- each console runs under a watchdog that restarts it (appending to its log)
+  if the USB link or the tty is lost; a command to a console that does not
+  read gives up after 5 s;
+- `HW_DRY=1` prints every hardware action instead of doing it (dry run).
+
+The weekend LFN campaign of 2026-11-07/08 (`tests/hw/WEEKEND_2026-11-07.md`)
+runs on these scripts through `tests/hw/run_weekend.sh`, with
+`run_hw_gs11.sh` (two LFNs reset together), `aem_wakes.py` (an LFN's wakes
+classified from an `aem_floor.py` analysis), `lfn_blackbox/s8_run.py`
+(Silicon Labs' LFN with its real Balanced and Eco profiles) and
+`build_weekend.sh` (its images). Build option `FW_LFN_PROFILE`
+(`test`, `balanced`, `eco`; default empty) applies Silicon Labs' LFN profile
+to the LFN parents and the LFN (`apps/common/lfn_profile.h`); the CLI's
+`ping` takes an optional fifth argument, the wait for replies after the last
+request in seconds (default 12), for LFNs with long listen intervals.
 
 1. **Flash and open both consoles.** Mass erase first. Check the first lines:
    - `nanostack-efr32fg25-freertos BR starting, RAIL x.y.z`;
