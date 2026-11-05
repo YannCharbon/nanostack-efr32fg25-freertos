@@ -91,17 +91,18 @@ next_aem=$(( $(hw_now) + AEM_EVERY ))
 next_dump=$(( $(hw_now) + AEM_DUMP_EVERY )); ndump=0
 # AEM windows on every kit of AEM_SN at the same time
 aem_windows() {
-    local sn
+    local sn pids=""
+    # wait for these only: a bare wait would also wait for the consoles
     for sn in $AEM_SN; do
-        ( ua=$(aem_ua "$sn" "$AEM_WIN"); echo "$(hw_now) $sn ${ua:-none}" >> aem.txt ) &
+        ( ua=$(aem_ua "$sn" "$AEM_WIN"); echo "$(hw_now) $sn ${ua:-none}" >> aem.txt ) & pids="$pids $!"
     done
-    wait
+    wait $pids
 }
 aem_dumps() {
-    local sn
+    local sn pids=""
     ndump=$((ndump + 1))
-    for sn in $AEM_DUMP_SN; do aem_dump "$sn" "$AEM_DUMP_S" "aem_${sn}_$ndump" & done
-    wait
+    for sn in $AEM_DUMP_SN; do aem_dump "$sn" "$AEM_DUMP_S" "aem_${sn}_$ndump" & pids="$pids $!"; done
+    wait $pids
 }
 for g in $GAPS; do
     i=$((i + 1))

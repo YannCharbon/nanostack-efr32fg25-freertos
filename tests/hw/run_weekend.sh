@@ -106,7 +106,7 @@ step() {
     mkdir -p "$d"
     echo "$*" > "$d/cmd.txt"
     say "step $(basename "$d"): $*"
-    if [ "$DRY" = 1 ]; then "$@" 2>&1 | tee "$d/out.txt" | sed 's/^/    /'; else "$@" > "$d/out.txt" 2>&1; fi
+    if [ "$DRY" = 1 ]; then "$@" 2>&1 | tee "$d/out.txt" | sed 's/^/    /'; else "$@" 2>&1 | head -c 500M > "$d/out.txt"; fi   # a runaway step stops at 500 MB
     local rc=${PIPESTATUS[0]}
     [ "$DRY" = 1 ] && rc=0
     echo "exit $rc" >> "$d/out.txt"

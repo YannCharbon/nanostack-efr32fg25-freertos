@@ -136,16 +136,17 @@ kit_reset() {
 # reset again alone (kit_reset). Prints "boot offset <ms>": the difference of
 # the two banners' host times (USB/UART latency: a few ms of uncertainty).
 kits_reset_together() {
-    local a=$1 b=$2 oa ob ta tb
+    local a=$1 b=$2 oa ob ta tb pa pb
     if dry; then
         cmdr device reset --serialno "${HW_SN[$a]}" -d $DEV
         cmdr device reset --serialno "${HW_SN[$b]}" -d $DEV
         echo "boot offset 0 ms (dry run)"; return 0
     fi
     oa=$(logsize "$a"); ob=$(logsize "$b")
-    commander device reset --serialno "${HW_SN[$a]}" -d $DEV >/dev/null 2>&1 &
-    commander device reset --serialno "${HW_SN[$b]}" -d $DEV >/dev/null 2>&1 &
-    wait
+    # wait for these two only: a bare wait would also wait for the consoles
+    commander device reset --serialno "${HW_SN[$a]}" -d $DEV >/dev/null 2>&1 & pa=$!
+    commander device reset --serialno "${HW_SN[$b]}" -d $DEV >/dev/null 2>&1 & pb=$!
+    wait $pa $pb
     if waitfor "$a" "$BANNER" 12 "$oa" >/dev/null; then HW_OFF[$a]=$oa; else echo "note: $a missed the paired reset"; kit_reset "$a"; fi
     if waitfor "$b" "$BANNER" 12 "$ob" >/dev/null; then HW_OFF[$b]=$ob; else echo "note: $b missed the paired reset"; kit_reset "$b"; fi
     ta=$(since_reset "$a" | grep -a -m1 "$BANNER" | awk '{print $1}')
