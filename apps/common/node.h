@@ -53,6 +53,7 @@ void udp_test_init(void);
 int udp_test_send(const uint8_t addr[16], const char *text);
 void ping_init(void);
 int ping_start(const uint8_t addr[16], unsigned count, unsigned size, unsigned interval_ms);
+int ping_start_wait(const uint8_t addr[16], unsigned count, unsigned size, unsigned interval_ms, unsigned wait_s);
 void ping_on_timer(void);
 void cli_init(void);
 void cli_poll(void);

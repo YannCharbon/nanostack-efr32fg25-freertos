@@ -110,6 +110,7 @@ static struct {
     uint32_t sent_at[PING_MAX_COUNT];   /* per request (seq 1..count) */
     uint64_t answered;                  /* bit seq-1: its reply came */
     unsigned interval_ms;               /* between requests */
+    unsigned grace_ms;                  /* wait after the last request */
     uint32_t rtt_min, rtt_max, rtt_sum;
     bool active;
 } ping;
@@ -201,6 +202,13 @@ static void ping_summary(void)
 
 int ping_start(const uint8_t addr[16], unsigned count, unsigned size, unsigned interval_ms)
 {
+    return ping_start_wait(addr, count, size, interval_ms, 0);
+}
+
+/* wait_s: how long replies are awaited after the last request (0: PING_GRACE_MS);
+ * an LFN with a long listen interval answers only in its next window */
+int ping_start_wait(const uint8_t addr[16], unsigned count, unsigned size, unsigned interval_ms, unsigned wait_s)
+{
     if (icmp_sid < 0 || ping.active) {
         return -1;
     }
@@ -210,6 +218,7 @@ int ping_start(const uint8_t addr[16], unsigned count, unsigned size, unsigned i
     ping.size = size > PING_MAX_PAYLOAD ? PING_MAX_PAYLOAD : size;
     ping.rtt_min = UINT32_MAX;
     ping.interval_ms = interval_ms ? interval_ms : 1000;
+    ping.grace_ms = wait_s ? wait_s * 1000u : PING_GRACE_MS;
     ping.active = true;
     ping_on_timer();
     return 0;
@@ -225,7 +234,7 @@ void ping_on_timer(void)
     if (ping.left) {
         ping.left--;
         ping_send_one();
-        eventOS_event_timer_request(0, APP_EVENT_PING, g_node.tasklet, ping.left ? ping.interval_ms : PING_GRACE_MS);
+        eventOS_event_timer_request(0, APP_EVENT_PING, g_node.tasklet, ping.left ? ping.interval_ms : ping.grace_ms);
         return;
     }
     ping.active = false;

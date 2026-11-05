@@ -14,6 +14,7 @@
 #include "app_config.h"
 #include "certs.h"
 #include "node.h"
+#include "lfn_profile.h"
 
 #define TRACE_GROUP "rn"
 
@@ -62,6 +63,10 @@ void app_role_configure(void)
         ret = ws_management_fan_version_set(g_node.ws_if, 2 /* FAN 1.1 (1: FAN 1.0) */);
         if (ret) tr_warn("ws_management_fan_version_set: %d", ret);
         ws_management_lfn_settings_defaults(&lfn);
+#ifdef APP_LFN_PROFILE
+        app_lfn_profile_lfn(&lfn);  /* FW_LFN_PROFILE */
+        tr_info("LFN profile %s: listen %lu ms", APP_LFN_PROFILE_NAME, (unsigned long)lfn.listen_interval_ms);
+#endif
 #ifdef APP_LFN_LISTEN_INTERVAL_MS
         /* Proposed listen interval (LUS-IE); the parent may adjust it (LTO-IE) */
         lfn.listen_interval_ms = APP_LFN_LISTEN_INTERVAL_MS;
