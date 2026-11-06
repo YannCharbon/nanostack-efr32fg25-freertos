@@ -41,7 +41,7 @@ def flash(sn, image):
 
 
 def vcom(sn, baud, rtscts):
-    commander("vcom", "config", "-s", sn, "--baudrate", str(baud), "--handshake", "rtscts" if rtscts else "disable")
+    commander("vcom", "config", "-s", sn, "--baudrate", str(baud), "--handshake", "rtscts" if rtscts else "none")
 
 
 def reset(sn):

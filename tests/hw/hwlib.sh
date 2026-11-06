@@ -57,6 +57,9 @@ console_start() { # name SN
     HW_SN[$1]=$2
     HW_OFF[$1]=0
     if dry; then echo "DRY: console $1 on kit $2 -> $1.log, commands $1.cmd"; return 0; fi
+    # our images print at 115200 without handshake; Silicon Labs' black-box
+    # steps leave a kit's board controller at 9600 RTS/CTS (2026-11-06)
+    commander vcom config -s "$2" --baudrate 115200 --handshake none >/dev/null 2>&1
     local t; t=$(tty_of "$2")
     [ -c "$t" ] || { echo "FAIL: no console for kit $2"; exit 2; }
     rm -f "$1.stop"

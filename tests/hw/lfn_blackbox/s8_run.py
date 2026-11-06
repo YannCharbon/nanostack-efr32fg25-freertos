@@ -195,7 +195,7 @@ class S8:
     def parent_start(self):
         k = self.k
         if self.a.parent == "ours":
-            k.commander("vcom", "config", "-s", L.B, "--baudrate", "115200", "--handshake", "disable")
+            k.commander("vcom", "config", "-s", L.B, "--baudrate", "115200", "--handshake", "none")
             k.console("br", L.B, 115200, False)
             p = k.size("br")
             k.commander("device", "reset", "-s", L.B, "-d", L.DEV)
@@ -210,7 +210,7 @@ class S8:
             print(f"DRY: wsbrd.py start {self.d} --extra {extra} (kit B as RCP, fresh storage)")
             return True
         import wsbrd as W
-        k.commander("vcom", "config", "-s", L.B, "--baudrate", "115200", "--handshake", "disable")
+        k.commander("vcom", "config", "-s", L.B, "--baudrate", "115200", "--handshake", "none")
         _, t = W.start_wsbrd(self.d, extra, fresh_storage=True)
         if t is None:
             self.line("FAIL: S8 parent: wsbrd did not start (see wsbrd.log)")
