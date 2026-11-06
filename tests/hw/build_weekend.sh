@@ -32,6 +32,9 @@ NS=$(cd "$NS" && pwd)
 cd "$FW" || exit 2
 rc=0
 INTEROP='APP_WS_PHY_MODE_ID=1;APP_WS_CHAN_PLAN_ID=32;APP_NETWORK_NAME="hw5lfn"'
+# our network's own name: the bench firmware also defaults to "Wi-SUN Network"
+# (Test_Bench_MTS.md 6.2); the wk-net, wk-lfnr and wk-lfn images take it too
+OURS='APP_NETWORK_NAME="wk-kits"'
 COMMON="-DNANOSTACK_DIR=$NS -DFW_BOARD_FLASH_DPD=ON -DFW_FLASH_FS=ON -DFW_LFN_PARENT=ON"
 build() { # dir preset targets... (cmake options in OPTS)
     local d=$1 preset=$2; shift 2
@@ -46,7 +49,7 @@ build() { # dir preset targets... (cmake options in OPTS)
 for p in balanced eco; do
     OPTS=("-DFW_LFN_PROFILE=$p" "-DAPP_EXTRA_DEFS=$INTEROP")
     build "wk-int-$p" fw wisun_br
-    OPTS=("-DFW_LFN_PROFILE=$p" -DFW_RN_LFN_PARENT=ON)
+    OPTS=("-DFW_LFN_PROFILE=$p" -DFW_RN_LFN_PARENT=ON "-DAPP_EXTRA_DEFS=$OURS")
     build "wk-$p" fw-mode3 wisun_br wisun_rn wisun_lfn
 done
 

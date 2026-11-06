@@ -53,6 +53,13 @@ while [ $# -gt 0 ]; do
     shift
 done
 ECO_GAPS=${ECO_GAPS:-3600 39600 1800 600}
+# TRIAL=1: phase B shortened to check its set-up on the kits (2026-11-06):
+# joins as in the campaign, then a few short gaps, no long silences
+if [ "${TRIAL:-0}" = 1 ]; then
+    T_BX1_GAPS="60 120"; T_BX1_DUMP=100000; ECO_GAPS="60 360"
+    T_BY1="--settle 0 --duration 900 --gap 300"; T_BY2="--settle 0 --duration 900 --gap 450"
+    T_BY3="--settle 0 --duration 900 --gap 450"
+fi
 export HW_DRY=$DRY
 mkdir -p "$OUT"
 if [ "$DETACH" = 1 ]; then
@@ -196,8 +203,8 @@ pair_X() {
     # Balanced: listen 60 s, LFN broadcast 60 s x 15 (sync every 15 min);
     # 5 downlinks 30 min apart; AEM windows every 10 min, a 300 s dump every hour
     step BX1_balanced env BR_SN=$K2 RN_SN= LFN_SNS=$K3 LISTEN_S=60 JOIN_TMO=2700 \
-        GAPS="1800 1800 1800 1800 1800" AEM_SN=$K3 AEM_EVERY=600 AEM_WIN=60 \
-        AEM_DUMP_EVERY=3600 AEM_DUMP_S=300 "$HW/run_hw_lfn_dl.sh" "$OUT/BX1_balanced"
+        GAPS="${T_BX1_GAPS:-1800 1800 1800 1800 1800}" AEM_SN=$K3 AEM_EVERY=600 AEM_WIN=60 \
+        AEM_DUMP_EVERY=${T_BX1_DUMP:-3600} AEM_DUMP_S=300 "$HW/run_hw_lfn_dl.sh" "$OUT/BX1_balanced"
     flash $K2 "$B/wk-eco/wisun_br.hex" erase
     flash $K3 "$B/wk-eco/wisun_lfn.hex" erase
     # Eco: listen 300 s, LFN broadcast 600 s x 60 (sync every 10 h), listening
@@ -216,18 +223,21 @@ pair_Y() {
     flash $K1 "$B/wk-int-balanced/wisun_br.hex" erase
     flash $K4 "$SL_LFN" erase
     step BY1_p3_balanced python3 "$S8" "$OUT/BY1_p3_balanced" --parent ours --profile balanced \
-        --join-tmo 2700 --settle 1800 --duration 5400 --gap 900 --aem-every 600 --aem-win 60 \
+        --join-tmo 2700 ${T_BY1:---settle 1800 --duration 5400 --gap 900} --aem-every 600 --aem-win 60 \
         --dump-at 600,3600 --dump-s 300 $dry
     flash $K1 "$B/wk-int-eco/wisun_br.hex" erase
+    # settle 900 s: in the trial of 2026-11-06 the first exchanges right after
+    # the join each missed one LFN unicast window (Balanced and Eco alike, under
+    # wsbrd too: Silicon Labs' LFN, not our parent)
     step BY2_p3_eco python3 "$S8" "$OUT/BY2_p3_eco" --parent ours --profile eco \
-        --join-tmo 5400 --settle 0 --duration 7200 --gap 1800 --aem-every 900 --aem-win 60 \
+        --join-tmo 5400 ${T_BY2:---settle 900 --duration 7200 --gap 1800} --aem-every 900 --aem-win 60 \
         --dump-at 600,4800 --dump-s 660 $dry
     flash $K1 "$SL_RCP" erase
     # under wsbrd with Eco's 10 h sync: a downlink and an uplink after the
     # join, the next ones after 10.2 h of silence (across the first sync):
     # Silicon Labs' own behaviour in the case of the stack fix of 2026-11-05
     step BY3_p1_eco python3 "$S8" "$OUT/BY3_p1_eco" --parent wsbrd --profile eco \
-        --join-tmo 5400 --settle 0 --duration 37800 --gap 36600 --aem-every 900 --aem-win 60 \
+        --join-tmo 5400 ${T_BY3:---settle 900 --duration 37800 --gap 36600} --aem-every 900 --aem-win 60 \
         --dump-at 600,18000,36700 --dump-s 660 $dry
 }
 
