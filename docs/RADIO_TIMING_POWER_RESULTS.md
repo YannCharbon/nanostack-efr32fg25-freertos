@@ -17,12 +17,12 @@ line, the AEM dumps): `/home/yann/kit-runs/2026-11-12_em5_sniff/` and
 | Question | Measured (EU mode 3, 150 kbit/s) | Emulator parameter |
 | --- | --- | --- |
 | Time from the receiver being on (RAIL's RX state reached) to a preamble detection, preamble present | 252–293 µs, median 270 µs (254 cycles); the same after a TX (TX→RX) and from idle (idle→RX) | `--sniff-settle-us` 225 + one dwell |
-| Time from the start of a preamble to its detection, receiver already on | 47 µs (about 7 bits; 29 cycles, 745–761 µs after the trigger for a preamble starting at 698 µs) | `--sniff-dwell-bits` 7 |
+| Time from the start of a preamble to its detection, receiver already on | 7–61 µs, median 47 µs (about 7 bits), in clusters near 20, 35 and 48 µs (29 cycles, preamble starting 698 µs after the trigger) | `--sniff-dwell-bits` 7 (the median) |
 | Preamble that must be left when the receiver comes on for the frame to be received | 100 % received with 423 µs or more (long preamble) or 438 µs or more (12-byte preamble), 0 % with 398 µs or less; 3 of 18 at 413 µs | detection must leave 22 preamble bits before the 16-bit SFD: `--sniff-margin-bits` 22 |
-| Detection against a co-channel FSK interferer (SIR) | first try: 100 % from +5.4 dB, 67 % at +3.9 dB, 0 % at +0.6 dB and below; within 4 ms: 100 % at +3.9 dB, 14 % at +0.6 dB, none at −2.8 dB | `--sniff-curve` table |
-| RX→TX, TX→RX, idle→RX, idle→TX | RAIL keeps its state timings exactly (1 µs) when they are set longer than the default; the preamble detector then needs about 225 µs more after RX | radio options `WSSIM_PHY_TX_DELAY_US`, `WSSIM_PHY_RX_DELAY_US` |
-| Currents (3.32 V, chip, AEM) | EM0 with the radio idle 7.29 mA, EM1 4.75 mA, EM2 7–8 µA, RX listening 11.15 mA (EM0), receiving 0.2 mA below listening, TX 19.8 / 27.4 / 41.0 / 57.4 / 75.2 mA at −10.1 / 0 / +9.9 / +14 / +16.9 dBm | `efr32fg25-soc.ini` |
-| Transitions (AEM, 10 µs) | idle→RX 80 µs, 0.16 µC; RX→idle 40 µs, 0.045 µC; idle→TX 100 µs, 0.37 µC; TX→idle 50 µs, 0.17 µC (above the idle current) | `[radio_transitions]` |
+| Detection against a co-channel FSK interferer (SIR) | first try: 100 % from +5.4 dB, 67 % at +3.9 dB, 0 % at +0.6 dB and below; within 4 ms: 100 % at +3.9 dB, 14 % at +0.6 dB, none at −2.8 dB; misses are not independent from try to try (§4.3) | `--sniff-curve` table |
+| idle→RX, idle→TX, TX→RX | RAIL holds these state timings to a few µs from about 125–130 µs up (300 → 1000 µs moves the times by 700 µs); the preamble detector then needs about 225 µs more after RX. RX→TX not measured (RAILtest's TX from RX goes through idle) | radio options `WSSIM_PHY_TX_DELAY_US`, `WSSIM_PHY_RX_DELAY_US` |
+| Currents (3.32 V, chip, AEM) | EM0 with the radio idle 7.29 mA, EM1 4.75 mA, EM2 7–8 µA, RX listening 11.15 mA (EM0), receiving 0.2 mA below listening, TX 19.8 / 27.4 / 41.0 / 57.4 / 75.2 mA at −10.1 / 0 / +9.9 / +14 / +16.9 dBm (RAIL's reported levels) | `efr32fg25-soc.ini` |
+| Transitions (AEM, 10 µs) | idle→RX 80 µs, 0.16 µC; RX→idle 40 µs, 0.045 µC; idle→TX 100 µs, 0.37–0.40 µC; TX→idle 50 µs, 0.17–0.22 µC (above the idle current; the range is where the ramp is cut) | `[radio_transitions]` |
 
 ## 2. Setup
 
@@ -108,7 +108,7 @@ first detection minus X):
 
 | X (µs) | Preamble left at X (µs) | Detected | Delay min / median / max (µs) | Received |
 | --- | --- | --- | --- | --- |
-| 100 (before the frame) | — | 29/29 | 645 / 645 / 659 after X, i.e. 47–61 µs after the preamble's start | 29 |
+| 100 (before the frame) | — | 29/29 | 605 / 645 / 659 after X, i.e. 7–61 µs (median 47) after the preamble's start | 29 |
 | 1500 | 5598 | 25/25 | 273 / 274 / 288 | 25 |
 | 2000 | 5098 | 26/26 | 252 / 269 / 293 | 26 |
 | 2500–5500 (7 points) | 4598–1598 | 203/203 | 252 / 270 / 293 | 203 |
@@ -118,8 +118,8 @@ the receiver on 250 µs or more before the frame, detection 47 µs after the
 preamble's start; on later, 239–298 µs after X.
 
 So the receiver detects a preamble about **270 µs after it is on** (spread
-±25 µs), and **47 µs (7 bits) after a preamble starts** when it was already
-on. In the emulator's model (§10.2 of MEDIUM.md): settling 225 µs, then
+±25 µs), and **7–61 µs after a preamble starts** when it was already on
+(median 47 µs, 7 bits; the values cluster near 20, 35 and 48 µs). In the emulator's model (§10.2 of MEDIUM.md): settling 225 µs, then
 dwells of 7 bits.
 
 ### 4.2 Preamble needed for reception
@@ -148,14 +148,18 @@ least 22 + 16 = 38 bits before the SHR's end.
 `s3_sir` (receiver on at 3000 µs, 4.1 ms of W's preamble left, I's payload
 over it), 24–29 cycles per point:
 
-| SIR (dB) | +15.4 … +7.9 (5 points) | +5.4 | +3.9 | +0.6 | −2.8 | −8.0 |
+| SIR (dB) | +15.4, +15.0, +14.0, +12.0, +9.6, +7.9 (6 points) | +5.4 | +3.9 | +0.6 | −2.8 | −8.0 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Detected within 300 µs of X (first try) | 100 % | 27/27 | 18/27 | 0/29 | 0/29 | 0/27 |
 | Detected at all (within 4.1 ms) | 100 % | 27/27 | 27/27 | 4/29 | 0/29 | 0/27 |
 | W's frame received (sync) | 100 % | 26/27 | 13/27 | 0/29 | 0/29 | 0/27 |
 
 At +3.9 dB the late detections came 306–881 µs after X, one to twelve
-dwells later. At +0.6 dB four detections in 29 cycles of about 80 dwells
+dwells later; of the 9 cycles that missed the first try, 5 needed 7–13 more
+dwells. The tries are therefore not independent: for a given alignment of
+the interferer's bits the detector tends to keep missing. The emulator draws
+each try independently, which is optimistic for detection over several
+dwells at a marginal SIR. At +0.6 dB four detections in 29 cycles of about 80 dwells
 each: about 0.002 per dwell. Per try (a 7-bit dwell): 1 from +5.4 dB, about
 0.65 at +3.9 dB, about 0.002 at +0.6 dB, 0 at −2.8 dB. The reception column
 follows the medium's interference curve for a 50-byte frame (50 % at about
@@ -167,8 +171,8 @@ follows the medium's interference curve for a 50-byte frame (50 % at about
 | --- | --- | --- | --- |
 | idle→RX, command to first detection | idleToRx 100 / 300 / 1000 | 385–406 / 542–591 / 1251–1287 µs | 15 each |
 | idle→TX, command to TX start | idleToTx 100 / 300 / 1000 | 3679–3803 / 3850–3967 / 4550–4663 µs | 15 each |
-| RX→TX, command to TX start | rxToTx 100 / 300 / 1000 | 3694–3814 µs whatever the setting | 15 each |
-| TX→RX, end of TX to first detection | txToRx 100 … 5500 | X + 252–293 µs | §4.1 |
+| RX→TX, command to TX start | rxToTx 100 / 300 / 1000 | 3694–3814 µs whatever the setting: not measured (see below) | 15 each |
+| TX→RX, end of TX to first detection | txToRx 1500 … 5500 | X + 252–293 µs | §4.1 |
 
 - From 300 to 1000 µs the measured times move by 700 µs to within a few µs:
   RAIL holds its state timings exactly when they are longer than its own
@@ -201,13 +205,14 @@ B 440235509 (10 kHz, 2 s):
 | EM1, radio idle (`sleep 1`) | 4.75 | 4.42 |
 | EM2, radio off (`sleep 2`) | 0.008 (median 0.002) | 0.007 |
 | RX listening, empty channel (EM0) | 11.15 | 10.72 |
-| RX receiving (EM0), frame at about −21 dBm | 10.9 (0.2 below listening) | — |
+| RX receiving (EM0), 250-byte frames at −43 dBm (RSSI at the kit) | 10.9 (0.2 below listening) | — |
 | TX −10.1 dBm (PN9 stream, EM0) | 19.78 | 19.82 |
 | TX 0 dBm | 27.42 | 27.01 |
 | TX +9.9 dBm | 40.98 | 39.92 |
 | TX +14.0 dBm | 57.39 | 56.19 |
-| TX +16.9 dBm (`setPower 200` gives 16.9: the PA's maximum here) | 75.20 | 74.10 |
+| TX +16.9 dBm (`setPower 200` gives 169 deci-dBm) | 75.20 | 74.10 |
 
+- The TX levels are RAIL's reported values for RAILtest's PA configuration (`setPower` answers with the level it set; 200 deci-dBm gives 169), not RF measurements; our firmware's PA configuration was not checked.
 - Radio increments over EM0 with the radio idle: RX 3.86 / 3.80 mA; TX 12.5,
   20.1, 33.7, 50.1, 67.9 mA (kit A; kit B within 0.8 mA). The two kits agree
   within 3 % on every increment; their bases differ by 0.3–0.4 mA.
@@ -218,7 +223,7 @@ B 440235509 (10 kHz, 2 s):
   firmware); it is 2.6 mA above the datasheet's EM1 at 97.5 MHz (2.145 mA).
   RX listening with the MCU in EM1 is therefore about 4.75 + 3.86 = 8.6 mA,
   against 8.15 mA measured on our firmware in HW5.
-- **RX while receiving** (`rxbusy`): with frames every 35 ms, the kit draws
+- **RX while receiving** (`rxbusy`, run `power_440290182_gap20`, `RXBUSY_GAP_MS=20`, W at −15 dBm, RSSI −43 dBm at the kit): with frames every 35 ms, the kit draws
   11.1 mA listening, 10.9 mA during each 14.3 ms frame, then 9.3 mA for
   10.5 ms while RAILtest prints the packet (CPU waiting on the UART). So
   receiving costs 0.2 mA less than listening.
@@ -238,6 +243,9 @@ Averaged edges, 10 µs samples, kit A; charge above the radio-idle EM0 level
 | RX→idle | 10.2, 8.2, 7.7, 7.6, 7.4 mA | about 40 µs | 0.045 µC |
 
 A 2000 µs RX window of the duty cycle lasts 2110–2160 µs above 9.2 mA.
+Where a ramp starts and ends is a matter of threshold at 10 µs per sample:
+idle→TX is 0.37–0.40 µC and TX→idle 0.17–0.22 µC depending on whether the
+first and last partial samples are counted.
 
 ## 7. Parameters for the emulator
 
@@ -246,12 +254,23 @@ A 2000 µs RX window of the duty cycle lasts 2110–2160 µs above 9.2 mA.
    `--sniff-margin-bits`), curve `-2.8:0,0.6:0.002,3.9:0.65,5.4:1` (per try,
    against the SINR). With these, the model detects 272 µs after the receiver
    is on, 47 µs after a preamble starts, and acquires a frame when it was on
-   418 µs or more before the preamble's end.
-2. **Turnaround:** RX→TX 192 µs and TX→RX 182 µs in our firmware (RAIL
-   holds them); the receiver detects 225 µs after that.
+   418 µs or more before the preamble's end. The emulator applies the table with its
+   empirical receiver curve; with its layered model (`--medium-rx-model=layered`)
+   the default stays `ber:16` on that model's noise curve, which keeps its
+   field margin (the kits measured detection against an interferer only).
+2. **Turnaround:** our firmware configures RX→TX 192 µs and TX→RX 182 µs.
+   The kits showed RAIL holding idleToTx, idleToRx and txToRx from about
+   125–130 µs up; RX→TX was not measured (RAILtest's TX from RX goes
+   through idle). After TX→RX the receiver detects 225 µs plus one dwell
+   later, and receives a frame whose preamble still has about 418 µs left:
+   with the 12-byte preamble (640 µs) every frame starting after the end of
+   its own TX is received, so the emulator's RX delay (which loses every
+   frame starting during it) should be `max(0, txToRx + 418 − preamble)`:
+   0 µs in mode 3, 173 µs with an 8-byte preamble at 150 kbit/s.
 3. **Power profile** (`efr32fg25-soc.ini`): TX per level from §6.1, the
    increments anchored to the +10 dBm value the firmware measured (HW5), the
-   maximum at +16.9 dBm; RX while receiving 0.2 mA below listening; the four
+   maximum at +16.9 dBm (RAIL's reported maximum for RAILtest's PA
+   configuration); RX while receiving 0.2 mA below listening; the four
    transitions of §6.2. The MCU states (EM0 7.29, EM1 4.75 mA with the RF
    PLL) are recorded but the profile keeps its split (datasheet EM1 plus the
    radio's share), which matches the chip's totals in every FFN state; see
@@ -276,7 +295,8 @@ A 2000 µs RX window of the duty cycle lasts 2110–2160 µs above 9.2 mA.
   ±15 µs (the first bits come during the transmitter's PA ramp).
 - Interferer points: one wanted level (−21 dBm), one receiver-on point,
   24–29 cycles per point; per-try probabilities have a binomial uncertainty
-  of about ±0.1 at 0.65.
+  of about ±0.1 at 0.65, and the tries are not independent (§4.3).
+- The TX levels are RAIL's, not measured at RF (§6.1).
 - Channel change time and CCA duration: not measured (§5).
 - Currents: RAILtest's MCU states, not our firmware's; one PHY (mode 3,
   channel 0); TX on a PN9 stream; one sample kit per board type.
@@ -294,6 +314,8 @@ tests/hw/sniff/sniff.py s3_levels <out>/mode3 --lp 96 --x 100 --pW 30 \
 tests/hw/sniff/analyze.py <out>/mode3 s2_remain --start 698   # tables
 tests/hw/radio_power/timing.py <out>/timing --n 15            # §5 (about 3 min)
 tests/hw/radio_power/power.py --sn 440290182 --peer 440235509 --out <out>/power_440290182   # §6
+RXBUSY_GAP_MS=20 tests/hw/radio_power/power.py --sn 440290182 --peer 440235509 \
+    --out <out>/power_440290182_gap20 --states rxbusy           # §6.1, receiving vs listening
 ```
 
 The RX duty-cycle shape of §6.2 was recorded with RAILtest's
