@@ -23,6 +23,13 @@
       "displayName": "BRD4271A (863-870 MHz), Wi-SUN EU class 2 / mode 3 (150 kbit/s): BR + RN",
       "binaryDir": "${sourceDir}/build/fw-mode3",
       "cacheVariables": { "FW_PHY_MODE": "3" }
+    },
+    {
+      "name": "fw-mts",
+      "inherits": "fw-mode3",
+      "displayName": "BRD4271A, Wi-SUN EU class 2 / mode 3, for the MTS bench's DUT slots: network MTS-Bench, +14 dBm",
+      "binaryDir": "${sourceDir}/build/fw-mts",
+      "cacheVariables": { "APP_EXTRA_DEFS": "APP_NETWORK_NAME=\"MTS-Bench\"", "FW_TX_POWER_DDBM": "140" }
     }
   ],
   "buildPresets": [
@@ -34,6 +41,7 @@
     { "name": "all-na", "configurePreset": "fw-na", "targets": ["wisun_br", "wisun_rn"] },
     { "name": "br-mode3",  "configurePreset": "fw-mode3", "targets": ["wisun_br"] },
     { "name": "rn-mode3",  "configurePreset": "fw-mode3", "targets": ["wisun_rn"] },
-    { "name": "all-mode3", "configurePreset": "fw-mode3", "targets": ["wisun_br", "wisun_rn"] }
+    { "name": "all-mode3", "configurePreset": "fw-mode3", "targets": ["wisun_br", "wisun_rn"] },
+    { "name": "rn-mts",    "configurePreset": "fw-mts",   "targets": ["wisun_rn"] }
   ]
 }

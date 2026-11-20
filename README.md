@@ -121,6 +121,8 @@ cmake --build --preset br-na     # or rn-na / all-na
 
 cmake --preset fw-mode3          # BRD4271A / EU, PHY mode 3 (build/fw-mode3)
 cmake --build --preset all-mode3 # or br-mode3 / rn-mode3
+cmake --preset fw-mts            # mode 3 router for the MTS bench's DUT slots: network MTS-Bench, +14 dBm (build/fw-mts)
+cmake --build --preset rn-mts
 ```
 
 **Board power and power-test options.** `FW_BOARD_FLASH_DPD` (default ON):
