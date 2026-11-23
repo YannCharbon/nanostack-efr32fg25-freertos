@@ -783,6 +783,7 @@ Four kits, EU mode 3 (class 2, 150 kbit/s), stack `aada047`/`be7481c` (then the 
 | --- | --- | --- |
 | `FW_LFN_MC_GROUP=<IPv6 group>` | `wisun_lfn` | The LFN joins the group on its UDP test socket (port 1234), on the Wi-SUN interface; the stack registers it with the parent (RFC 9685, EARO with P = 1; the stack's `docs/LFN_STACK.md` §4) and answers each datagram to it with `ack:<text>` |
 | `FW_LFN_PARENT_CHECK_S=<s>` | `wisun_lfn` | Better-parent check interval (`parent_check_s` and `parent_check_weak_s`; defaults 6 h and 1 h, `LFN_STACK.md` §9). Each check logs the parent's smoothed RSL |
+| `FW_LFN_DRIFT_PPM=<ppm>` | `wisun_lfn` | Window widening before the clock rate is measured (`drift_ppm`, default 50 ppm). Test only: a larger value reaches a long silence's window length sooner (the Eco current check of 2026-11-23 used 200) |
 | `FW_TX_POWER_DDBM=<deci-dBm>` | all | Fixed TX power (default 100: +10 dBm) |
 | CLI `txpower <dBm>` | all | TX power now and for later requests; RAIL clamps it (the minimum on these boards in this PHY: −15.0 dBm) and the console prints the power set |
 | `FW_TEST_MAC_ALLOW=<EUI-64>,<EUI-64>` | `wisun_lfn` | Now up to 4 EUI-64s |

@@ -76,6 +76,12 @@ void app_role_configure(void)
         lfn.parent_check_s = APP_LFN_PARENT_CHECK_S;
         lfn.parent_check_weak_s = APP_LFN_PARENT_CHECK_S;
 #endif
+#ifdef APP_LFN_DRIFT_PPM
+        /* Window widening before the clock rate is measured (default 50 ppm);
+         * a larger value reaches a long silence's window length sooner, for tests */
+        lfn.drift_ppm = APP_LFN_DRIFT_PPM;
+        tr_info("LFN drift_ppm %lu", (unsigned long)lfn.drift_ppm);
+#endif
         ret = ws_management_lfn_settings_set(g_node.ws_if, &lfn);
         if (ret) tr_warn("ws_management_lfn_settings_set: %d", ret);
         tr_info("FAN 1.1 LFN");
