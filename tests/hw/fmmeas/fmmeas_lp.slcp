@@ -1,0 +1,48 @@
+project_name: fmmeas
+label: "Fire alarm mesh: FG25 radio measurements"
+package: "rail_sdk_sample_applications"
+description: Measurement firmware (internal equipment) for the fire alarm mesh stack's PHY at 300 kbit/s.
+category: RAIL Examples
+quality: experimental
+component:
+  - id: radio_config_simple_rail_singlephy
+  - id: sl_main
+  - id: clock_manager
+  - id: device_init
+  - id: board_control
+  - id: sl_rail_util_init
+    instance:
+      - inst0
+  - id: rail_util_pa
+  - id: sl_rail_util_power_manager_init
+  - id: power_manager
+  - id: sleeptimer
+source:
+  - path: app.c
+configuration:
+  - name: SL_POWER_MANAGER_INIT_EMU_EM2_DEBUG_ENABLE
+    value: "0"
+  - name: SL_POWER_MANAGER_CONFIG_VOLTAGE_SCALING_FAST_WAKEUP
+    value: "1"
+  - name: SL_RAIL_UTIL_INIT_PROTOCOLS_INST0_ENABLE
+    value: "1"
+  - name: SL_RAIL_UTIL_INIT_PROTOCOL_INST0_DEFAULT
+    value: "SL_RAIL_UTIL_PROTOCOL_PROPRIETARY"
+  - name: SL_RAIL_UTIL_INIT_INIT_COMPLETE_CALLBACK_INST0_ENABLE
+    value: "1"
+  - name: SL_RAIL_UTIL_INIT_RX_PACKET_QUEUE_INST0_ENTRIES
+    value: "16"
+  - name: SL_RAIL_UTIL_INIT_RX_FIFO_INST0_BYTES
+    value: "512"
+  - name: SL_RAIL_UTIL_INIT_RADIO_CONFIG_SUPPORT_INST0_ENABLE
+    value: "1"
+  - name: SL_RAIL_UTIL_INIT_CALIBRATIONS_INST0_ENABLE
+    value: "1"
+  - name: SL_STACK_SIZE
+    value: "2048"
+  - name: SL_IOSTREAM_EUSART_VCOM_FLOW_CONTROL_TYPE
+    value: "SL_IOSTREAM_EUSART_UART_FLOW_CTRL_NONE"
+  - name: SL_IOSTREAM_EUSART_VCOM_RESTRICT_ENERGY_MODE_TO_ALLOW_RECEPTION
+    value: "0"
+  - name: SL_BOARD_ENABLE_VCOM
+    value: "1"
