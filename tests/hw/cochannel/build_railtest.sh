@@ -2,7 +2,7 @@
 # Build Silicon Labs' RAILtest for the BRD4271A with a Wi-SUN EU PHY, for the
 # co-channel / capture measurements (see docs/COCHANNEL_RESULTS.md).
 #
-# usage: tests/hw/cochannel/build_railtest.sh <mode3|mode1a> <out dir>
+# usage: tests/hw/cochannel/build_railtest.sh <mode3|mode5|mode1a> <out dir>
 #   mode3  : PHY_WISUN_FAN_1v1_863MHz_Plan33_2FSK_3_EU  (150 kbit/s, h = 0.5, 35 ch x 200 kHz)
 #   mode1a : PHY_WISUN_FAN_1v1_863MHz_Plan32_2FSK_1a_EU (50 kbit/s, h = 0.5; the radioconf of
 #            the firmware's brd4271a target, channels 256..324 x 100 kHz grid)
@@ -14,11 +14,12 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
-MODE=${1:?usage: build_railtest.sh <mode3|mode1a> <out dir>}
+MODE=${1:?usage: build_railtest.sh <mode3|mode5|mode1a> <out dir>}
 OUT=$(mkdir -p "${2:?out dir}" && cd "$2" && pwd)/$MODE
 source "$REPO/../.deps/env.sh"
 case "$MODE" in
     mode3)  RC=$REPO/sdk/gen/brd4271a-mode3/config/rail/radio_settings.radioconf ;;
+    mode5)  RC=$REPO/sdk/gen/brd4271a-mode5/config/rail/radio_settings.radioconf ;;
     mode1a) RC=$REPO/sdk/gen/brd4271a/config/rail/radio_settings.radioconf ;;
     *) echo "unknown mode $MODE" >&2; exit 1 ;;
 esac

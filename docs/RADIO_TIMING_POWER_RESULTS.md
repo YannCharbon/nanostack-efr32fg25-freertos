@@ -321,3 +321,23 @@ RXBUSY_GAP_MS=20 tests/hw/radio_power/power.py --sn 440290182 --peer 440235509 \
 The RX duty-cycle shape of §6.2 was recorded with RAILtest's
 `configRxDutyCycle 1 2000 10000`, `enableRxDutyCycle 1`, `rx 1` and a 1 s
 `commander aem dump` (`power_440290182/440290182_dutycycle.csv.gz`).
+
+## 10. 300 kbit/s for the fire alarm mesh stack (2026-11-25)
+
+RAILtest 2.19.3 with the stock PHY `PHY_WISUN_FAN_1v1_867MHz_Plan43_2FSK_5_SG` (300 kbit/s, h = 0.5, 866–869 MHz, within the kits' 868 MHz band), built with `tests/hw/cochannel/build_railtest.sh mode5`; the three attached kits (440235509, 440235475, 440240046) were left with this image. Currents on 440235509 (BRD4001A, 10 kHz energy monitor), whole chip, MCU awake in RAILtest's loop.
+
+| Quantity | Value |
+| --- | --- |
+| From `rx 1` to a preamble detection, preamble already on air, idleToRx 100 / 300 / 1000 µs | median 263 / 445 / 1144 µs (15 each, spread ±5 µs): detection about 160 µs after the receiver is ready, against about 270 µs at 150 kbit/s (§4.1) |
+| EM2 | 6 µA |
+| Idle (radio idle, MCU in EM0) | 6.83 mA |
+| RX, empty channel | 10.71 mA (3.9 mA above idle) |
+| TX at 10.8 dBm (the highest level reached when asking for 11 dBm) / 14.0 dBm, PN9 stream | 43.8 / 56.3 mA |
+| Short receive windows by RAIL's RX duty cycle (`radio_power/dutycycle.py`): extra charge over idle, against the window (period 200 ms) | 150 µs: 10.8 µC; 300: 11.4; 500: 12.1; 1000: 14.0 µC: slope 3.7 mA, the RX current |
+| The same, 300 µs windows at periods 50, 200, 400 ms | mean current above idle 0.081, 0.057, 0.052 mA: a fixed 1.66 µC per 300 µs window (about 0.5 µC beyond the RX current) plus a constant 48 µA while the duty-cycle mode runs |
+
+What it means for the stack:
+- **The radio's own cost of a short window is small:** about 0.5 µC to start and stop the receiver, plus 3.9 mA while it is on. The 7.35 µC per window of our Wi-SUN low-power firmware came mostly from its software teardown (the 1 ms `listen_off` of the LFN profile), which a dedicated firmware need not have. The 48 µA constant belongs to the duty-cycle mode running with the MCU awake; a firmware that sleeps in EM2 between windows replaces it by the 6 µA floor and the wake (0.19 µC, §6 of the LFN profile).
+- **The window must open well before the preamble.** Detection comes about 160 µs after the receiver is ready, and at 150 kbit/s a frame was received only with about 420 µs of preamble left when the receiver came on (§4.2). The specification's preamble lasts 213 µs at 300 kbit/s and its window opens only 30 µs (plus the clock allowance) before the sync word, so on the FG25 a frame would be missed: the receiver must be on some 0.2–0.4 ms before the preamble starts (to be measured at 300 kbit/s with `tests/hw/sniff/`), which makes each window about 0.4–0.6 ms long.
+- **Estimate per listening moment** (to be confirmed with an EM2 firmware): wake 0.19 µC + radio 0.5 µC + 0.5 ms × (3.9 mA radio + about 2.1 mA MCU in EM1) ≈ 3.7 µC; five per second ≈ 18 µA, plus the 6 µA floor: about 24 µA for listening alone, against 16.5 µA in the ns-3 parity set and 58 µA with the LFN profile.
+- Emulator settings: `firemesh/tools/emu/fg25-300k.ini` (the LFN profile with this fixed cost) and, for the kit set, a receiver settling of about 160 µs (`--sniff-settle-us=160`) with the stack's `--rx-lead-us` at about 300.
