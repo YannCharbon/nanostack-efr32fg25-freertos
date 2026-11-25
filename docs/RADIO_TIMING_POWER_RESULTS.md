@@ -348,13 +348,122 @@ What it means for the stack:
 | Floor (EM2, no radio) | 5.8 µA |
 | Charge of one listening moment, deep sleep to deep sleep, against the window's length (five per second) | 100 µs: 5.3 µC; 200: 5.7; 300: 7.2; 400: 8.8; 600: 9.5 µC; fitted: a fixed 4.3 ± 0.5 µC plus 9.3 ± 1.5 mA (1 σ; one 6 s record per length, residuals ±0.5–0.8 µC) while the receiver is on. The slope is poorly determined (about 6 mA would be expected: 3.9 mA radio + 2.1 mA processor); it matters for long windows only |
 | Listening alone, 300 µs windows, five per second | 42 µA |
-| When a frame is received (one kit sending back-to-back frames, the other opening windows) | when its preamble starts between about 120 µs before the window opens and 297 µs before it ends (300 µs windows: 35 of 301 windows caught a frame, as the 120 µs width predicts; 600 µs windows: 420 µs width). The radio reported the frame's end instead of its preamble start; the offsets were corrected by the frame's 800 µs |
+| When a frame is received (one kit sending back-to-back frames, the other opening windows) | when its preamble starts between about 120 µs before the window opens and 297 µs before it ends (300 µs windows: 35 of 301 windows caught a frame, as the 120 µs width predicts; 600 µs windows: 420 µs width). The radio reported the frame's end instead of its preamble start; the offsets were corrected by the frame's 800 µs. Correction (§12.1): the sender did not send every 1013 µs but every third or fourth slot (a scheduling error in the firmware, since fixed), so the agreement of the 35 catches with the 120 µs width was fortuitous; the edges stand and were confirmed |
 
 What it means:
 - **The window must open at least about 93 µs before the sync word** (120 µs before the end of the 213 µs preamble), not the 30 µs of the specification's allowance, and stay open about 84 µs past it. With the stack's `--rx-lead-us 80` and the emulator's detection set to "28 bits of preamble left at the opening" (`--sniff-settle-us=0 --sniff-dwell-bits=7 --sniff-margin-bits=21`), seven emulated detectors deliver every status from the first cycle at 43–49 µA (with the 4.3 µC fixed cost of the console build); without the earlier opening, formation takes three cycles and costs more.
-- **Caveat on the 93 µs: the timestamp's position is assumed, not verified.** The radio returned the frame's end, and 800 µs (the whole frame, CRC included) was subtracted. If the radio's end mark excludes the CRC, both edges move by 107 µs and the window must open about 200 µs before the sync word, which `--rx-lead-us 80` would not cover. The width of the reception interval (120 µs for 300 µs windows, 420 µs for 600 µs) does not depend on this. To be settled with a common time base (a GPIO of the sender captured by the receiver's timer).
+- **The timestamp's position, assumed here, is verified in §12.1:** the radio's frame-end timestamp includes the CRC, so the 800 µs correction and the 93 µs stand (§12.1 gives 88–97 µs).
 - **The window's end is a firmware choice.** The measured windows extend themselves only once the sync word is found (`hard_window_end = 0`); the specification extends on preamble detection. A frame whose sync word starts less than about 84 µs before the window's planned end is lost on this firmware. The emulator's FG25 settings model only the opening edge, so with this firmware hardware could lose late beacons that the emulator delivers.
-- **The fixed 4.3 µC per listening moment dominates** (21.5 µA at five moments per second): it is the wake from EM2, the high-frequency crystal's start and the radio's start and stop. Reducing it (the crystal's start-up time, the radio's wake path, a lighter sleep state at the window) is the main lever towards 31 µA. The radio's own currents are as measured with RAILtest (§10).
+- **The fixed 4.3 µC per listening moment dominates** (21.5 µA at five moments per second; explained and reduced to 2.4 µC in §12.2): it is the wake from EM2, the high-frequency crystal's start and the radio's start and stop. Reducing it (the crystal's start-up time, the radio's wake path, a lighter sleep state at the window) is the main lever towards 31 µA. The radio's own currents are as measured with RAILtest (§10).
 - **Where the fixed cost goes.** A variant that only wakes the processor five times per second (sleep timer, no radio) costs 2.85 µC per wake: about 1.1 ms at 2.6 mA, whereas our Wi-SUN low-power firmware's timer wakes cost about 0.1–0.2 µC. Running the processor from its RC oscillator instead of the radio's PLL changes nothing (2.73 µC). So about 2.8 µC of the 4.3 µC is this firmware's wake from deep sleep, and about 1.5 µC the radio's start and stop. Why a wake lasts 1.1 ms here (the crystal's start-up wait, leaving deep sleep, the console's serial port) is the next item; a wake as short as the Wi-SUN firmware's would bring a listening moment to about 2 µC and listening alone to about 16 µA.
 - **Settings tried for a cheaper wake** (`fmmeas_*.slcp`): without the serial console (`fmmeas_noio.slcp`) a 300 µs listening moment costs 5.6 µC instead of 7.2 µC, so listening alone costs 33.8 µA; the bare wake stays at 2.6 µC. Adding fast voltage scaling on wake-up and no debugging in deep sleep (`fmmeas_lp.slcp`) lowers the floor to 5.3 µA but does not shorten the wake (3.2 µC, windows 5.7–10.0 µC). The emulator profile uses the console-free figure: a fixed 2.8 µC plus 9.3 mA.
-- Not measured yet: the receive-to-transmit turnaround (0.4 ms needed), carrier sense in 0.1 ms, the sleep clock's drift.
+- The receive-to-transmit turnaround, the 0.1 ms carrier sense and the clocks' drift are measured in §12.
+
+## 12. Timestamps, wake cost, turnaround, carrier sense and clocks at 300 kbit/s (2026-11-25)
+
+The firmware of §11 (`tests/hw/fmmeas/`), extended: more roles (continuous receiver, responder, initiator, interferer, wake only with options), the radio's timestamps and software event times on the console, RAIL's timer kept across deep sleep (`FM_TSYNC`), a shorter early wake of the power manager (`FM_PMOVH`), extra build settings (`build.sh`: `SLCP`, `CONF`, `RADIOCONF`; `radio_settings_nocrc.radioconf` is the same PHY without CRC). `fmlog.py` captures the consoles and analyses the logs and the energy-monitor dumps; `run.py` runs the measurements below (`app.c` gives the console formats). Kits: currents on 440235509 (BRD4001A, energy monitor at 10 kHz), timing between 440235475 and 440240046, side by side, +10 dBm. Charges are per wake: the samples of each wake above the floor, the floor being the mean of the samples outside any activity; the median over the 30 wakes of a 6 s record (spread between wakes 0.01–0.07 µC).
+
+Firmware correction: the slot arithmetic of the sender and of the windows wrapped with RAIL's 32-bit clock, so the "back-to-back" sender of §11 sent in every third or fourth slot of 1013 µs (spacing 3039 or 4052 µs, measured). Fixed (`FM_GUARD_US`); a sender at 1013 µs slots kept on the crystal now sends every second or fourth slot (2026 or 4052 µs), the radio needing more than the 213 µs left between frames. The windows of §11 were regular (five per second).
+
+### 12.1 Where the receive timestamp sits
+
+| Quantity | Value |
+| --- | --- |
+| RAIL's default receive timestamp at this PHY | position "frame end" (`SL_RAIL_PACKET_TIME_AT_PACKET_END`), and RAIL's on-air duration from the end of the sync word (`packet_duration_us`, EFR32xG25 only) is 533 µs = 20 bytes: payload and CRC (426 µs = 16 bytes without CRC), on every frame |
+| Software time of the sync-word event (`SL_RAIL_EVENT_RX_SYNC_0_DETECT`) minus the frame-end timestamp | −486 to −499 µs with CRC (by run; several thousand frames), −380 to −391 µs without CRC; in runs with the same sender, 106–107 µs apart: the 4 CRC bytes. The event cannot come before the sync word has ended, so the end mark cannot be the payload's end (the event would then come 60–70 µs before the sync word's end); with the end mark at the CRC's end, the event comes 36–46 µs after it |
+| Reception interval, by the same windows with and without CRC (60 s each, one kit sending, the other opening 600 µs windows every 200 ms) | frame-end timestamp against the window's opening: first and last frames caught at 684 and 1102 µs with CRC, 585 and 993 µs without; the edges move by 99 and 109 µs (107 expected if the mark includes the CRC, 0 if not) |
+| Delay of the frame-end timestamp after the frame's last bit (round trip, §12.3) | 3.5–10.5 µs (depends on how the transmit timestamps sit, see §12.3) |
+| Preamble start of the frames caught, against the window's opening (timestamp − 800 µs) | 300 µs windows: −118 to +2 µs (45 frames); 600 µs windows: −116 to +302 µs (60 frames), and −116 to +285 µs with RAIL's timer kept across deep sleep and the shorter early wake of §12.2 (60 frames). The early edge is sharp: in 20 µs bins the count is already full in the bin next to it (285 frames pooled) |
+
+What it means for the stack:
+- **The window must open at least 97 µs before the sync word starts** (the end of the 213 µs preamble), that is no later than 116 µs after the preamble's first bit. With the timestamp delay of 3.5–10.5 µs the true figure is 86–93 µs; 97 µs is the bound that holds whatever the delay. Three runs (300 and 600 µs windows, with and without RAIL's timer sync and the shorter early wake of §12.2) agree within 2 µs on the early edge; the sampling of the edge adds at most about 7 µs. The 93 µs of §11 stands.
+- With the specification's window opening 30 µs before the sync word, the receiver must come on **67 µs earlier**: the stack's `--rx-lead-us 80` covers it with at least 13 µs to spare. The emulator's "28 bits of preamble left at the opening" (93 µs) matches.
+- **Late edge:** a frame is lost when its sync word ends less than about 31 µs before the window's planned end (300 µs window: preamble starting at most 2 µs after the opening; 600 µs: at most 302 µs); the window then extends itself. The stack's window must therefore cover the sync word's end plus about 31 µs (34–41 µs counting the timestamp's delay).
+- The frame-end timestamp is the radio's best reference: subtract 800 µs plus 4–10 µs for the preamble's start, or 533 µs plus the same for the sync word's end.
+
+### 12.2 The fixed cost of a listening moment
+
+The current traces (10 kHz) show the parts of a wake. Default settings (`fmmeas_noio.slcp`, 300 µs window): the crystal starting (about 0.25 ms at 0.64 mA), then about 0.5 ms at 3.9 mA with nothing to do, then the receiver (about 0.45 ms at 6.2 mA), then the end (about 0.1 ms).
+
+The idle 0.5 ms is the power manager's early wake. Before any timer that needs the high-frequency crystal (the radio's always do), it wakes the chip early by the crystal's start-up time, as the HFXO manager estimates it, times 1.125, plus 95 µs. On these kits the estimate stays at its default of 600 µs (20 sleep-timer ticks, read on the kit) and is never updated, while the crystal starts in about 0.25–0.3 ms; the chip then waits about 0.45 ms in EM1 at 3.9 mA (processor on the 97.5 MHz radio PLL, crystal and radio clocks on). Each tick (30.5 µs) removed from the early wake saves about 0.12 µC on a bare wake; on a listening moment the saving is smaller without RAIL's timer kept (0.05 µC per tick) than with it (1.5 µC for 14 ticks). A sleep-timer wake that does not need the crystal costs 0.76 µC here; the 0.1 µC timer wakes of the Wi-SUN low-power firmware were not reproduced and not investigated further, since every wake of the stack needs the crystal. A wake-only image that never sets the radio up has a floor of 14 µA (RAIL initialised but never used); this does not concern a firmware that uses the radio.
+
+| Settings (each one 6 s record, five wakes per second) | Wake only (`FM_ROLE 3`) | 300 µs listening moment | Floor |
+| --- | --- | --- | --- |
+| No console (`fmmeas_noio.slcp`), default | 2.54 µC | 5.58 µC | 5.7 µA |
+| the same, sleep timer flagged as not needing the crystal | 0.76 µC (0.4 ms at 1.3–2 mA) | — | — |
+| the same, RAIL's timer kept across deep sleep (`FM_TSYNC 1`) | — | 5.61 µC | 5.8 µA |
+| early wake 8 / 10 / 12 / 14 ticks shorter (`FM_PMOVH`), RAIL's timer not kept | 1.60 µC (8) | 5.23 / 5.13 / 5.04 / 4.95 µC | 5.8 µA |
+| RAIL's timer kept and early wake 14 ticks shorter | — | 4.10 µC (repeated: 4.11) | 5.7 µA |
+| the same, no debugging in deep sleep (`SL_POWER_MANAGER_INIT_EMU_EM2_DEBUG_ENABLE 0`) | — | 4.10 µC (14 ticks), 4.20 µC (12), 4.44 µC (10) | 5.1–5.3 µA |
+| early wake 15 ticks shorter, RAIL's timer not kept | 0.77 µC | no window at all (the firmware stopped opening windows; cause not examined) | — |
+| processor on the 39 MHz crystal or on the 19 MHz RC oscillator instead of the radio PLL | 2.18 / 2.16 µC | 7.5 / 7.6 µC (0.8 ms more at 2.4 mA before the receiver starts) | 5.8 µA |
+| fast voltage scaling on wake-up and no debugging in deep sleep (`fmmeas_lp.slcp`), RAIL's timer kept | 2.20 µC | 5.49 µC; 4.07 µC with 12 ticks shorter; no window with 14 | 10.6 µA once the radio has run (5.2 µA before) |
+
+**Recommended settings for a low-power firmware** (measured together): no serial console; no debugging in deep sleep; the processor on the radio PLL (the default); RAIL's timer kept across deep sleep (`sl_rail_config_sleep` with `SL_RAIL_TIMER_SYNC_DEFAULT`, needed anyway for the timing, §12.4); the power manager's early wake 12 ticks (366 µs) shorter (`sl_power_manager_schedule_wakeup_set_restore_overhead_tick(-12)`), 3 ticks (92 µs) away from the setting at which the windows fail. With these settings:
+
+| Window | 100 µs | 200 µs | 300 µs | 600 µs |
+| --- | --- | --- | --- | --- |
+| Charge of a listening moment | 3.08 µC | 3.60 µC | 4.20 µC | 6.07 µC |
+
+A line fits within ±0.05 µC: **a fixed 2.43 ± 0.05 µC plus 6.03 ± 0.1 mA while the window is open** (the chip's whole current with the receiver on: 3.9 mA radio, the rest processor and clocks). Floor 5.2 µA. Listening alone, 300 µs windows five times per second: 26.3 µA measured (33.8 µA with the default settings, 42 µA in §11 with the console).
+
+What it means:
+- The fixed cost drops from about 3.8 µC (default settings without console: 5.58 µC minus 300 µs at 6.03 mA) to 2.4 µC. About 0.15–0.2 µC of it is the crystal's start; the rest is the processor's restart and the radio's start and stop, which the 10 kHz trace does not separate further. The remaining lever is the window's length: 0.6 µC per 100 µs.
+- The early wake is a margin against the crystal's start-up time, which varies with temperature and ageing; 12 ticks shorter keeps a margin, 15 ticks shorter fails. A product firmware should measure the start-up time (or have the HFXO manager do it) and set the margin from it, not use a fixed number. **Not verified:** the crystal's start-up over temperature.
+- RAIL's timer kept across deep sleep costs nothing measurable and is required (§12.4).
+
+### 12.3 Receive-to-transmit turnaround and carrier sense
+
+Responder (`FM_ROLE 5`, 440235475): each frame of the initiator (`FM_ROLE 6`, 440240046, one frame every 20 ms) is answered by a transmit scheduled at the frame-end timestamp E plus a delay D, from the frame-received callback. Both kits log their timestamps; 200–400 exchanges per setting.
+
+| Quantity | Value |
+| --- | --- |
+| Frame-received callback after E | 58–69 µs |
+| Answer's preamble (its own transmit timestamp) after the scheduled time | 13 µs, constant (D = 220, 240, 250, 300, 400 µs) |
+| Shortest delay D accepted from the callback | 220 µs; at 200 µs RAIL refuses the transmit (`SL_RAIL_STATUS_INVALID_PARAMETER`) |
+| Answer's end at the initiator, after the end of its own frame (both its timestamps) | D + 827 µs (± 4 µs) |
+| Transmit timestamps: end minus preamble start | 807 µs (the frame is 800 µs) |
+| Single carrier sense (`sl_rail_start_scheduled_cca_csma_tx`, one try, no backoff, −75 dBm) | 100 µs: the preamble starts 125 µs after the scheduled time; 200 µs: 231–232 µs. From the start of the carrier sense to the first bit: its length plus 25–32 µs |
+| Carrier sense, quiet channel (100, 150, 200, 300 µs; 500 tries each) | always clear |
+| Carrier sense, continuous PN9 interferer on the channel (third kit, a few cm away) | 604 of 604 busy |
+| Carrier sense against a third kit's frames | detected: half the tries busy while that kit's 20 ms frames overlapped every second try |
+
+The round trip gives 2d − a − b = 14 µs, where d is the receive timestamp's delay after the last bit, a the transmit end timestamp's delay after the last bit and b the transmit preamble timestamp's delay after the first bit. If the transmit end timestamp is exact (the 7 µs beyond 800 µs being part of RAIL's duration), d = 3.5 µs; if the preamble timestamp is exact, d = 10.5 µs.
+
+What it means for the stack:
+- **The 0.4 ms answer is feasible with margin:** scheduling from the callback works down to 220 µs after the timestamp. For the preamble to start 400 µs after the received frame's last bit, schedule at E + 400 − 13 − d ≈ E + 380 µs.
+- **A 0.1 ms carrier sense works at this PHY:** it detects a strong signal reliably and gives no false busy on a quiet channel. With it, the first bit comes 125 µs after the scheduled time: schedule at about E + 270 µs for a preamble at 400 µs. **Not verified:** the threshold's accuracy near −75 dBm (the kits were only tested with strong signals; no attenuators).
+
+### 12.4 Clocks: the crystals, the sleep clocks and RAIL's time across deep sleep
+
+One kit sends about every 100 ms, the other receives continuously (its radio clock then runs on its 39 MHz crystal) and timestamps the frames; a line fitted to the arrival times gives the sender's clock against the receiver's crystal (60–120 s per run, 650–1200 frames, single arrivals within 0.7–2.3 µs rms of the line). The sender keeps time three ways: its radio clock on its crystal (`FM_EM1`); its sleep timer alone (`FM_ROLE 9`, the 32.768 kHz crystal through the sleep timer, a frame sent at once after each wake); its radio clock kept across deep sleep by RAIL (`FM_TSYNC`). The receiver also reads its own sleep timer against its radio clock. Figures in ppm against the crystal of kit 440235475; negative: slower.
+
+| Kit | Crystal (39 MHz) | Sleep clock (32.768 kHz) | RAIL's time across deep sleep (sender) |
+| --- | --- | --- | --- |
+| 440235475 | 0 (reference) | −17.79 to −17.82 (its own reading, 7 runs of one to two minutes); −17.87 (seen from 440240046) | −33.4 (seen from 440240046) |
+| 440240046 | −3.73 (seen from 440235475); −3.67 the other way | −9.33 (sender); −9.42 (its own reading, with its crystal) | −25.69 |
+| 440235509 | −6.60 | −2.90 | −19.89 |
+
+- **The two ways agree:** a kit's sleep clock seen by the other kit matches its own reading within 0.1 ppm, and the crystals within 0.06 ppm both ways. Within a run (one to two minutes), the rate changes by at most 0.1 ppm between its halves.
+- **Between kits,** the crystals differ by up to 6.6 ppm and the sleep clocks by up to 14.9 ppm (440235475 against 440235509; 8.4 and 6.5 ppm for the other pairs). The sleep clocks run 3–18 ppm slow against the crystal of the reference kit. Absolute errors are not known (no reference clock).
+- **RAIL's time across deep sleep runs about 16 ppm slower than the sleep clock it is synchronised to** (15.5, 16.4 and 17.0 ppm on the three kits, measured at different times; about the same with frames every 10 ms and every 100 ms, so a rate, not a loss per wake). The cause was not examined. As every node runs the same code, the offset is largely common to sleeping nodes, but a node whose time runs on its crystal (one that does not sleep) sees its children 16 ppm off.
+- **Without RAIL's timer sync** (`sl_rail_config_sleep` not called, the default of RAIL's utility components), RAIL's time loses about 0.5 ms at every deep sleep (frames scheduled every 10 ms or 100 ms arrive every 10.498 ms or 100.497 ms): unusable for the protocol. The timing results of §11 and §12.1 are not affected (they are offsets within one wake).
+
+What it means for the stack:
+- On these kits two nodes' sleep clocks can differ by 15 ppm, three times the 5 ppm the protocol assumes for its crystals; the drift compensation must take the rate from the parent's beacons, not from a nominal figure. The short-term stability (0.1 ppm over two minutes, about 2 µs of timing noise per frame) is far better than the 1 ppm target, so a rate learnt over one or two 60 s beacon intervals is sufficient while the temperature is steady. **Not measured:** the drift with temperature (a 32.768 kHz tuning-fork crystal typically loses 0.035 ppm/°C² away from 25 °C, about 14 ppm at 5 °C and at 45 °C).
+- The firmware must call `sl_rail_config_sleep` with timer sync, and either use the sleep timer directly for its long intervals or account for the 16 ppm of RAIL's time across sleep.
+
+### 12.5 Values for the emulator profile and the stack
+
+| Setting | Value | Source |
+| --- | --- | --- |
+| Fixed cost of a listening moment (wake, crystal, radio start and stop), recommended settings | 2.43 µC | §12.2 |
+| Whole-chip current while the receiver is on (listening, receiving, carrier sense) | 6.03 mA | §12.2 |
+| Floor, deep sleep, no debugging in deep sleep | 5.2 µA (kit 440235509) | §12.2 |
+| Window opening before the sync word's start | at least 97 µs; the stack's `--rx-lead-us` at least 67 µs (80 µs kept) | §12.1 |
+| Window end after the sync word's end | at least 31–41 µs | §12.1 |
+| Answer delay from the frame-end timestamp to the preamble | scheduled delay + 13 µs; at least 233 µs | §12.3 |
+| Carrier sense, start to first bit | its length + 25–32 µs (125 µs for 100 µs) | §12.3 |
+| Sleep clocks between nodes / crystals | up to 15 ppm / 6.6 ppm apart (three kits) | §12.4 |
+
+Raw logs and energy-monitor dumps of this section are kept in the session's scratch directory only; `run.py` reproduces the measurements (about 10 minutes with the default durations; `--parts` selects).
