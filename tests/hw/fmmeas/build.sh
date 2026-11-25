@@ -10,7 +10,7 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd); NAME=$2; DEFS=${3:-}
 G=$OUT/gen
 if [ ! -f "$G/fmmeas.Makefile" ]; then
   rm -rf "$G"; mkdir -p "$G"
-  cp "$HERE/fmmeas.slcp" "$HERE/app.c" "$G/"
+  cp "$HERE/${SLCP:-fmmeas.slcp}" "$G/fmmeas.slcp"; cp "$HERE/app.c" "$G/"
   gen() { slc generate -p "$G/fmmeas.slcp" -s "$SISDK" -d "$G" --with brd4271a,brd4001a -o makefile --no-daemon 2>&1 | grep -v "Duplicate definition" | tail -2; }
   gen
   cp "$HERE/radio_settings.radioconf" "$G/config/rail/radio_settings.radioconf"

@@ -19,6 +19,7 @@
 #include "sl_rail.h"
 #include "sl_rail_util_init.h"
 #include "fm_cfg.h"           /* written by build.sh */
+#include "sl_sleeptimer.h"
 
 #ifndef FM_ROLE
 #define FM_ROLE 0
@@ -79,8 +80,17 @@ static void radio_setup(void)
   sl_rail_set_tx_fifo(h, fifo, sizeof fifo, 0, 0);
 }
 
+#if FM_ROLE == 3
+/* FM_ROLE 3: the processor only, woken every FM_PERIOD_US by the sleep timer */
+static sl_sleeptimer_timer_handle_t wt;
+static void wake_cb(sl_sleeptimer_timer_handle_t *t, void *d) { (void)t; (void)d; }
+#endif
+
 void app_init(void)
 {
+#if FM_ROLE == 3
+  sl_sleeptimer_start_periodic_timer_ms(&wt, FM_PERIOD_US / 1000, wake_cb, NULL, 0, 0);
+#endif
 #if FM_ROLE == 1
   printf("fmmeas role %d window %d period %d\n", FM_ROLE, FM_WIN_US, FM_PERIOD_US);
 #endif
@@ -88,6 +98,9 @@ void app_init(void)
 
 void app_process_action(void)
 {
+#if FM_ROLE == 3
+  return;
+#endif
   if (!started) {
     /* the radio may not be ready at app_init: retry until it accepts */
     radio_setup();
