@@ -300,9 +300,6 @@ first and last partial samples are counted.
 - Channel change time and CCA duration: not measured (§5).
 - Currents: RAILtest's MCU states, not our firmware's; one PHY (mode 3,
   channel 0); TX on a PN9 stream; one sample kit per board type.
-- The kits are left with the RAILtest mode-3 image on all four
-  (440240046, 440235509, 440290182, 440235475); reflash the firmware before a
-  firmware run.
 
 ## 9. Reproducing
 
@@ -324,7 +321,7 @@ The RX duty-cycle shape of §6.2 was recorded with RAILtest's
 
 ## 10. 300 kbit/s for the fire alarm mesh stack (2026-11-25)
 
-RAILtest 2.19.3 with the stock PHY `PHY_WISUN_FAN_1v1_867MHz_Plan43_2FSK_5_SG` (300 kbit/s, h = 0.5, 866–869 MHz, within the kits' 868 MHz band), built with `tests/hw/cochannel/build_railtest.sh mode5`; the three attached kits (440235509, 440235475, 440240046) were left with this image. Currents on 440235509 (BRD4001A, 10 kHz energy monitor), whole chip, MCU awake in RAILtest's loop.
+RAILtest 2.19.3 with the stock PHY `PHY_WISUN_FAN_1v1_867MHz_Plan43_2FSK_5_SG` (300 kbit/s, h = 0.5, 866–869 MHz, within the kits' 868 MHz band), built with `tests/hw/cochannel/build_railtest.sh mode5`. Currents on 440235509 (BRD4001A, 10 kHz energy monitor), whole chip, MCU awake in RAILtest's loop.
 
 | Quantity | Value |
 | --- | --- |
