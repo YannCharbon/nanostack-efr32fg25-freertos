@@ -3,14 +3,17 @@
 # usage: build.sh OUTDIR NAME "-DFM_ROLE=0 -DFM_WIN_US=300 ..."
 # The project is generated once in OUTDIR/gen; each variant is a make with its defines.
 # SLCP=<file>.slcp and RADIOCONF=<file>.radioconf choose the project and the PHY,
-# CONF="NAME=VALUE ..." adds configuration entries (use a separate OUTDIR per choice).
+# CONF="NAME=VALUE ..." adds configuration entries; the project is generated again
+# whenever one of them changes.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../../.." && pwd)
 source "$REPO/../.deps/env.sh"
 OUT=$(mkdir -p "$1" && cd "$1" && pwd); NAME=$2; DEFS=${3:-}
 G=$OUT/gen
-if [ ! -f "$G/fmmeas.Makefile" ]; then
+# the generated project is reused only if it was made from the same project, PHY and entries
+STAMP=$(cat "$HERE/${SLCP:-fmmeas.slcp}" "$HERE/${RADIOCONF:-radio_settings.radioconf}" <(echo "${SLCP:-} ${RADIOCONF:-} ${CONF:-}") | sha256sum | cut -c1-16)
+if [ ! -f "$G/fmmeas.Makefile" ] || [ "$(cat "$G/stamp" 2>/dev/null)" != "$STAMP" ]; then
   rm -rf "$G"; mkdir -p "$G"
   cp "$HERE/${SLCP:-fmmeas.slcp}" "$G/fmmeas.slcp"; cp "$HERE/app.c" "$G/"
   # CONF="NAME=VALUE ...": extra configuration entries (the project's configuration list is last)
@@ -20,6 +23,7 @@ if [ ! -f "$G/fmmeas.Makefile" ]; then
   cp "$HERE/${RADIOCONF:-radio_settings.radioconf}" "$G/config/rail/radio_settings.radioconf"
   gen
   grep -q '"result_code": "0"' "$G/autogen/radioconf_generation_log.json" || { echo "radio config failed:"; cat "$G/autogen/radioconf_generation_log.json" | head -40; exit 1; }
+  echo "$STAMP" > "$G/stamp"
 fi
 cp "$HERE/app.c" "$G/app.c"
 : > "$G/fm_cfg.h"

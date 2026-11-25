@@ -485,3 +485,10 @@ An independent review checked §12 against the code, the SDK and the raw data. E
 - **Turnaround minimum (§12.3).** RAIL refused 200 µs and accepted 220 µs; the 100 µs and 150 µs runs recorded nothing.
 - **Windows after a late frame (firmware).** The window counter still skips a window after a frame received past the window's end (7 times in one run). The edge results are not affected.
 - **Not covered:** weak signals (all runs at +10 dBm with the kits side by side), other channels, temperature, the recommended build's timing, and the carrier-sense threshold near −75 dBm or a frame starting during the sense.
+- **A second review (the analysis code)** recomputed with its own scripts the charges of §12.2 (within 0.01 µC) and the drift figures of §12.4. Every value matches, and no wraparound or sign error was found in the timestamp arithmetic. Points it adds:
+  - **Late edge:** the margin after the sync word's end is 31 µs in the default build but 48 µs in the recommended build (one run each). Use about 50 µs.
+  - **Phase locking:** each 6 s record samples its 30 wakes at almost the same sampling phase, so the spread between wakes is not a measurement uncertainty. Repeats at other phases agree within 0.013 µC.
+  - **Without timer sync:** a listener loses about 45 µs per wake, not 0.5 ms; the 0.5 ms is the sender's loss. Timer sync stays necessary.
+  - **Missing charge:** a 0.086 µC event once per second, also without radio, is in neither the floor nor the wake charge. It adds 0.09 µA.
+  - **Duration and CRC shift:** RAIL's reported duration after the sync word is 536 µs instead of 533 µs on about 5 % of frames. The run without CRC has its early edge at −108 µs against −116 to −118 µs, so the CRC shift is 99 µs at that edge.
+  - **Scripts:** `results.json` uses the opposite sign to §12.4 (noted in `fmlog.py`), and the drift analysis now rejects a run whose frame numbering is inconsistent. `build.sh` reused a generated project after a change of project, PHY or entries; it now generates it again. The turnaround part of `run.py` reads the initiator's log after a fixed 1 s wait.

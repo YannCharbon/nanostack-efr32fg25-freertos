@@ -105,7 +105,8 @@ def _unwrap(v, mod=1 << 32):
 
 
 def drift(period_us, path):
-    """Role 4 receiving a role-2 sender of period period_us. sender_ppm > 0: the
+    """Role 4 receiving a role-2 sender of period period_us. Sign: the opposite of
+    RADIO_TIMING_POWER_RESULTS.md §12.4 (there, negative = slower). sender_ppm > 0: the
     sender's clock is slow against the receiver's radio clock (crystal, HFXO).
     sleep_ppm > 0: the receiver's sleep clock (LFXO via the sleep timer) is slow
     against its own radio clock."""
@@ -117,6 +118,9 @@ def drift(period_us, path):
     L = _unwrap([r[6] & 0xffffffff for r in F])
     nom = 1e6 / 32768
     b2, sb2, s2 = _fit(L, N)
+    # frames numbered by rounding: wrong once the offset passes half a period
+    if k[-1] + 1 - len(k) < 0 or s > 50:
+        raise ValueError(f"{path}: frame numbering inconsistent (missing {k[-1] + 1 - len(k)}, residual {s:.1f} us)")
     h = len(k) // 2
     halves = [round((_fit(k[:h], E[:h])[0] / period_us - 1) * 1e6, 3), round((_fit(k[h:], E[h:])[0] / period_us - 1) * 1e6, 3)]
     return {"frames": len(F), "seconds": round((E[-1] - E[0]) / 1e6, 1), "missing": k[-1] + 1 - len(k),
