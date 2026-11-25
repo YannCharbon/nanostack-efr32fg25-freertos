@@ -1,94 +1,136 @@
 #!/usr/bin/env python3
 """Measurements of the fire alarm mesh stack's radio on the FG25 kits, with
-the measurement firmware of this folder (build.sh). Results as JSON in OUT.
+the measurement firmware of this folder (build.sh, app.c). Results as JSON in
+OUT/results.json; docs/RADIO_TIMING_POWER_RESULTS.md section 12.
 
-usage: run.py OUT [--parts power,timing] [--wins 0,100,200,300,400,600]
-              [--meter 440235509] [--rx 440235475] [--tx 440240046] [--dur 6] [--secs 90]
+usage: run.py OUT [--parts power,timing,turn,drift] [--meter 440235509]
+              [--rx 440235475] [--tx 440240046] [--wins 0,100,200,300,600]
+              [--slcp fmmeas_noio.slcp] [--conf "NAME=VALUE ..."]
+              [--defs "-DFM_TSYNC=1 -DFM_PMOVH=-12"] [--dur 6] [--secs 60]
 
 power:  on the kit with the energy monitor (--meter), one image per window
-        length; the floor is the image without radio (window 0); the charge
-        per listening moment is (mean - floor) x period, and a line fitted
-        against the window length gives the fixed cost and the RX current.
-timing: --tx sends a frame every 1013 us (back to back), --rx opens windows
-        of each length of --twins every 200 ms and logs the instant of each
-        received frame's preamble start against the window's start; the
-        reception probability per 25 us of that offset is the count over
-        (windows x 25 / 1013).
+        length (--wins; 0: no radio, the floor), built with --slcp, --conf
+        and --defs; per image the floor and the median charge of a listening
+        moment above it (fmlog.py wakes); a line fitted against the window
+        length gives the fixed cost and the current while the receiver is on.
+        Default build: the recommended low-power settings (no console, no
+        debugging in deep sleep, RAIL's timer kept across deep sleep, the
+        power manager's early wake 12 sleep-timer ticks shorter).
+timing: --tx sends a frame in every free slot of 1013 us (radio clock, EM1),
+        --rx opens windows of each length of --twins every 200 ms and logs the
+        preamble start of each received frame against the window's opening
+        (the radio's frame-end timestamp minus 800 us).
+turn:   --rx answers each frame of --tx (initiator, one frame every 20 ms)
+        --turn-us after its frame-end timestamp, without and with a 100 us
+        carrier sense.
+drift:  --tx sends about every 100 ms: on its radio clock kept on the crystal
+        (EM1); timed by its sleep timer alone (the sleep clock); on its radio
+        clock kept across deep sleep by RAIL. --rx receives continuously and
+        timestamps the frames; it also reads its own sleep clock against its
+        radio clock (fmlog.py drift).
 """
-import argparse, json, os, subprocess, sys, time
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "radio_power"))
-from power import dump, summary  # noqa: E402
-import serial  # noqa: E402
+sys.path.insert(0, HERE)
+import fmlog  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("out")
-ap.add_argument("--parts", default="power,timing")
-ap.add_argument("--wins", default="0,100,200,300,400,600")
+ap.add_argument("--parts", default="power,timing,turn,drift")
+ap.add_argument("--wins", default="0,100,200,300,600")
 ap.add_argument("--twins", default="300,600")
+ap.add_argument("--slcp", default="fmmeas_noio.slcp")
+ap.add_argument("--conf", default="SL_POWER_MANAGER_INIT_EMU_EM2_DEBUG_ENABLE=0")
+ap.add_argument("--defs", default="-DFM_TSYNC=1 -DFM_PMOVH=-12")
+ap.add_argument("--chan", type=int, default=5, help="channel of the power images (away from the other kits)")
+ap.add_argument("--turn-us", type=int, default=400)
 ap.add_argument("--meter", type=int, default=440235509)
 ap.add_argument("--rx", type=int, default=440235475)
 ap.add_argument("--tx", type=int, default=440240046)
 ap.add_argument("--dur", type=float, default=6)
-ap.add_argument("--secs", type=float, default=90)
+ap.add_argument("--secs", type=float, default=60)
 a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
-FW = os.path.join(a.out, "fw")
-DEV = "EFR32FG25B222F1920IM56"
 res = {}
 
 
-def image(name, defs):
-    out = subprocess.run([os.path.join(HERE, "build.sh"), FW, name, defs], capture_output=True, text=True)
+def image(fw, name, defs, slcp="fmmeas.slcp", conf=""):
+    env = dict(os.environ, SLCP=slcp, CONF=conf)
+    out = subprocess.run([os.path.join(HERE, "build.sh"), os.path.join(a.out, fw), name, defs],
+                         capture_output=True, text=True, env=env)
     if out.returncode:
         sys.exit(out.stdout + out.stderr)
     return out.stdout.strip().splitlines()[-1]
 
 
 def flash(img, sn):
-    subprocess.run(["commander", "flash", img, "-s", str(sn), "-d", DEV], capture_output=True, check=True)
+    subprocess.run(["commander", "flash", img, "-s", str(sn), "-d", fmlog.DEV], capture_output=True, check=True)
+
+
+def console_run(sn, secs, name):
+    p = os.path.join(a.out, name + ".txt")
+    fmlog.cap(sn, secs, p, reset=True)
+    return p
 
 
 if "power" in a.parts:
     pw = {}
     for w in [int(x) for x in a.wins.split(",")]:
-        flash(image(f"p{w}", f"-DFM_ROLE=0 -DFM_WIN_US={w}"), a.meter)
-        time.sleep(1.5)
+        flash(image("fw_power", f"p{w}", f"-DFM_ROLE=0 -DFM_WIN_US={w} -DFM_CHAN={a.chan} {a.defs}", a.slcp, a.conf), a.meter)
+        time.sleep(2)
         p = os.path.join(a.out, f"power_w{w}.csv")
-        dump(a.meter, a.dur, p)
-        pw[w] = summary(p)["mean_ma"]
-        print("power window", w, "us: mean", round(pw[w] * 1000, 2), "uA", flush=True)
-    floor = pw.get(0)
-    if floor is not None:
-        pts = [(w, (m - floor) * 200.0) for w, m in pw.items() if w > 0]   # uC per window (mA x 200 ms)
-        n = len(pts); sx = sum(w for w, _ in pts); sy = sum(q for _, q in pts)
-        sxx = sum(w * w for w, _ in pts); sxy = sum(w * q for w, q in pts)
+        subprocess.run(["commander", "aem", "dump", "-s", str(a.meter), "--duration", str(a.dur), "-o", p], capture_output=True)
+        pw[w] = fmlog.wakes(p)
+        print("power window", w, json.dumps(pw[w]), flush=True)
+    pts = [(w, r["q_uC"]) for w, r in pw.items() if w > 0 and r["q_uC"]]
+    if len(pts) >= 2:
+        n = len(pts)
+        sx, sy = sum(w for w, _ in pts), sum(q for _, q in pts)
+        sxx, sxy = sum(w * w for w, _ in pts), sum(w * q for w, q in pts)
         slope = (n * sxy - sx * sy) / (n * sxx - sx * sx)
-        res["power"] = {"mean_ma": pw, "floor_ua": floor * 1000, "uc_per_window": dict(pts),
-                        "fixed_uc": (sy - slope * sx) / n, "rx_ma": slope * 1000}
-        print(json.dumps(res["power"]), flush=True)
+        res["power"] = {"per_window": pw, "fixed_uC": round((sy - slope * sx) / n, 3), "rx_mA": round(slope * 1000, 3)}
+    else:
+        res["power"] = {"per_window": pw}
+    print(json.dumps({k: v for k, v in res["power"].items() if k != "per_window"}), flush=True)
 
 if "timing" in a.parts:
     tm = {}
-    flash(image("tx", "-DFM_ROLE=2 -DFM_TXPER_US=1013"), a.tx)
+    flash(image("fw", "tx1em1", "-DFM_ROLE=2 -DFM_TXPER_US=1013 -DFM_EM1=1"), a.tx)
     for w in [int(x) for x in a.twins.split(",")]:
-        flash(image(f"r{w}", f"-DFM_ROLE=1 -DFM_WIN_US={w}"), a.rx)
-        s = serial.Serial(f"/dev/serial/by-id/usb-Silicon_Labs_J-Link_Pro_OB_000{a.rx}-if00", 115200, timeout=0.5)
-        subprocess.run(["commander", "device", "reset", "-s", str(a.rx), "-d", DEV], capture_output=True)
-        t_end = time.time() + a.secs
-        wins, offs = 0, []
-        while time.time() < t_end:
-            line = s.readline().decode(errors="replace").split()
-            if len(line) == 2 and line[0] == "W": wins += 1
-            elif len(line) == 3 and line[0] == "R": offs.append(int(line[2]))
-        s.close()
-        bins = {}
-        for o in offs: bins[25 * (o // 25)] = bins.get(25 * (o // 25), 0) + 1
-        exp = wins * 25 / 1013.0
-        prob = {b: round(c / exp, 2) for b, c in sorted(bins.items())} if wins else {}
-        tm[w] = {"windows": wins, "received": len(offs), "prob_by_offset_us": prob,
-                 "offset_min": min(offs) if offs else None, "offset_max": max(offs) if offs else None}
+        flash(image("fw", f"r{w}", f"-DFM_ROLE=1 -DFM_WIN_US={w} {a.defs}"), a.rx)
+        tm[w] = fmlog.edge(console_run(a.rx, a.secs, f"timing_w{w}"))
         print("timing window", w, json.dumps(tm[w]), flush=True)
     res["timing"] = tm
+
+if "turn" in a.parts:
+    tu = {}
+    flash(image("fw", "r6", "-DFM_ROLE=6 -DFM_TXPER_US=20000"), a.tx)
+    for cca in (0, 100):
+        flash(image("fw", f"r5c{cca}", f"-DFM_ROLE=5 -DFM_TURN_US={a.turn_us} -DFM_CCA_US={cca}"), a.rx)
+        subprocess.Popen([sys.executable, os.path.join(HERE, "fmlog.py"), "cap", str(a.tx), "10",
+                          os.path.join(a.out, f"turn_cca{cca}_initiator.txt")])
+        r = fmlog.turn(console_run(a.rx, 10, f"turn_cca{cca}_responder"))
+        time.sleep(1)
+        r.update(fmlog.turn(os.path.join(a.out, f"turn_cca{cca}_initiator.txt")))
+        tu[cca] = r
+        print("turn cca", cca, json.dumps(r), flush=True)
+    res["turn"] = tu
+
+if "drift" in a.parts:
+    dr = {}
+    flash(image("fw", "r4", "-DFM_ROLE=4"), a.rx)
+    for name, defs, per in (("crystal", "-DFM_ROLE=2 -DFM_TXPER_US=100000 -DFM_EM1=1", 100000),
+                            ("sleep_clock", "-DFM_ROLE=9 -DFM_TICKS=3277", 3277e6 / 32768),
+                            ("rail_time_across_sleep", "-DFM_ROLE=2 -DFM_TXPER_US=100000 -DFM_TSYNC=1", 100000)):
+        flash(image("fw", "tx_" + name, defs), a.tx)
+        dr[name] = fmlog.drift(per, console_run(a.rx, a.secs, "drift_" + name))
+        print("drift", name, json.dumps(dr[name]), flush=True)
+    res["drift"] = dr
 
 json.dump(res, open(os.path.join(a.out, "results.json"), "w"), indent=1)
