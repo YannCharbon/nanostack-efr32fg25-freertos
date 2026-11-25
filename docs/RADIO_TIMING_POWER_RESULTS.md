@@ -460,10 +460,28 @@ What it means for the stack:
 | Fixed cost of a listening moment (wake, crystal, radio start and stop), recommended settings | 2.43 µC | §12.2 |
 | Whole-chip current while the receiver is on (listening, receiving, carrier sense) | 6.03 mA | §12.2 |
 | Floor, deep sleep, no debugging in deep sleep | 5.2 µA (kit 440235509) | §12.2 |
-| Window opening before the sync word's start | at least 97 µs; the stack's `--rx-lead-us` at least 67 µs (80 µs kept) | §12.1 |
+| Window opening before the sync word's start | at least 97 µs from the lead alone: the stack's `--rx-lead-us` 100 µs (the clock allowance covers clock error and must not be counted; review, §12.6) | §12.1 |
 | Window end after the sync word's end | at least 31–41 µs | §12.1 |
-| Answer delay from the frame-end timestamp to the preamble | scheduled delay + 13 µs; at least 233 µs | §12.3 |
+| Answer delay from the frame-end timestamp to the preamble | scheduled delay + 13 µs (assuming the computed preamble time is exact, §12.6); RAIL accepts 220 µs after the timestamp, not 200 µs, counted from the call (at about +58–69 µs here) | §12.3 |
 | Carrier sense, start to first bit | its length + 25–32 µs (125 µs for 100 µs) | §12.3 |
-| Sleep clocks between nodes / crystals | up to 15 ppm / 6.6 ppm apart (three kits) | §12.4 |
+| Sleep clocks between nodes / crystals | up to 15 ppm / 6.6 ppm apart (three kits); a sleeping node's RAIL time against an always-on gateway's crystal: 20 to 33 ppm (§12.6) | §12.4 |
 
 Raw logs and energy-monitor dumps of this section are kept in the session's scratch directory only; `run.py` reproduces the measurements (about 10 minutes with the default durations; `--parts` selects).
+
+### 12.6 Review of §12 (2026-11-26)
+
+An independent review checked §12 against the code, the SDK and the raw data. Every figure was reproduced from the dumps and logs, including the charges of §12.2, the edges and the 107 µs shift of §12.1, and the ppm figures of §12.4. The review found the following points, which change what the figures mean.
+
+- **Window opening (§12.1, §12.5).** The specification opens a window at t − a, where the allowance a is the timing uncertainty, so a frame may arrive up to a early. The stack opens at t − a − lead. The receiver therefore has a + lead − e before the sync word, where e is the frame's actual earliness, and this must be at least 97 µs. The lead alone must give the 97 µs, otherwise the allowance loses its meaning. Hence the stack's lead is 100 µs, not 80 µs. The cost is about 0.1 µC per listening moment, about 0.5 µA.
+- **Relative rates (§12.4).** The allowance already uses twice the tolerance, so a 15 ppm difference between two kits is 1.5 times the 10 ppm the protocol allows between two nodes, not 3 times. The larger issue: the gateway is always on, so its time runs on its crystal, while a sleeping detector's RAIL time runs on the sleep clock and about 16 ppm slower. A detector can therefore be 20 to 33 ppm off the gateway (for example −19.9 ppm for kit 440235509 against kit 440235475's crystal, 33.4 ppm for kit 440235475 against its own crystal). Emulator runs with ±5 ppm crystals do not represent the kits.
+- **Early wake shortened by 12 ticks (§12.2).** Not established as safe:
+  - The failure point (−15) was measured in the build without timer sync; in the fast-voltage-scaling build −14 already fails; −15 was not tried in the recommended build.
+  - The offset applies to the crystal start-up estimate, read at its 20-tick default on the console build only. The SDK can update that estimate at run time; if it settles near the real 9–10 ticks, −12 leaves 1–2 ticks.
+  - A failure stops every window, because the firmware ignores the scheduling status.
+  - The 2.43 µC depends on this setting.
+- **Floor (§12.2).** 5.2 µA is one kit on one day. This kit's floor has read between 6.1 and 12.3 µA on other days with other firmware, and 10.6 µA in the fast-voltage-scaling build once the radio has run (not explained). This is about 2 µA of uncertainty, 7 % of the 26 µA listening figure.
+- **Fit uncertainty (§12.2).** From the four medians: 2.427 µC + 6.036 mA, residual 0.052 µC. Standard errors 0.050 µC and 0.14 mA (not 0.1 mA); with two degrees of freedom, 95 % intervals of about ±0.21 µC and ±0.6 mA. Meter accuracy and differences between kits are not included.
+- **Timestamp lag (§12.1, §12.3).** The preamble time is computed from the transmit end timestamp minus RAIL's reported duration, so the data fix only the difference of the two lags (3.5 µs). The receive lag can lie anywhere between 0 and about 23.5 µs. The 97 µs bound does not depend on it. For the turnaround it is better stated as: answer's first bit = received frame's last bit + scheduled delay + 23.5 µs.
+- **Turnaround minimum (§12.3).** RAIL refused 200 µs and accepted 220 µs; the 100 µs and 150 µs runs recorded nothing.
+- **Windows after a late frame (firmware).** The window counter still skips a window after a frame received past the window's end (7 times in one run). The edge results are not affected.
+- **Not covered:** weak signals (all runs at +10 dBm with the kits side by side), other channels, temperature, the recommended build's timing, and the carrier-sense threshold near −75 dBm or a frame starting during the sense.
