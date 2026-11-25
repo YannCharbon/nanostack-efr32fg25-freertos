@@ -338,3 +338,19 @@ What it means for the stack:
 - **The window must open well before the preamble.** Detection comes about 160 µs after the receiver is ready, and at 150 kbit/s a frame was received only with about 420 µs of preamble left when the receiver came on (§4.2). The specification's preamble lasts 213 µs at 300 kbit/s and its window opens only 30 µs (plus the clock allowance) before the sync word, so on the FG25 a frame would be missed: the receiver must be on some 0.2–0.4 ms before the preamble starts (to be measured at 300 kbit/s with `tests/hw/sniff/`), which makes each window about 0.4–0.6 ms long.
 - **Estimate per listening moment** (to be confirmed with an EM2 firmware): wake 0.19 µC + radio 0.5 µC + 0.5 ms × (3.9 mA radio + about 2.1 mA MCU in EM1) ≈ 3.7 µC; five per second ≈ 18 µA, plus the 6 µA floor: about 24 µA for listening alone, against 16.5 µA in the ns-3 parity set and 58 µA with the LFN profile.
 - Emulator settings: `firemesh/tools/emu/fg25-300k.ini` (the LFN profile with this fixed cost) and, for the kit set, a receiver settling of about 160 µs (`--sniff-settle-us=160`) with the stack's `--rx-lead-us` at about 300.
+
+## 11. Dedicated measurement firmware at 300 kbit/s (2026-11-25)
+
+`tests/hw/fmmeas/` holds a small bare-metal firmware (internal measuring equipment) with the fire alarm mesh specification's radio: 300 kbit/s 2-FSK (deviation 75 kHz) at 863.5 MHz, an 8-byte preamble, the 16-bit sync word 0xA73E, a CRC-32 (IEEE 802.3) and a fixed 16-byte payload. Between receive windows the chip is in deep sleep (EM2); windows and transmissions are scheduled on the radio's clock. `run.py` builds each variant, flashes it and measures; `build.sh` builds one.
+
+| Quantity | Value |
+| --- | --- |
+| Floor (EM2, no radio) | 5.8 µA |
+| Charge of one listening moment, deep sleep to deep sleep, against the window's length (five per second) | 100 µs: 5.3 µC; 200: 5.7; 300: 7.2; 400: 8.8; 600: 9.5 µC; fitted: a fixed 4.3 µC plus 9.3 mA (whole chip) while the receiver is on |
+| Listening alone, 300 µs windows, five per second | 42 µA |
+| When a frame is received (one kit sending back-to-back frames, the other opening windows) | when its preamble starts between about 120 µs before the window opens and 297 µs before it ends (300 µs windows: 35 of 301 windows caught a frame, as the 120 µs width predicts; 600 µs windows: 420 µs width). The radio reported the frame's end instead of its preamble start; the offsets were corrected by the frame's 800 µs |
+
+What it means:
+- **The window must open at least about 93 µs before the sync word** (120 µs before the end of the 213 µs preamble), not the 30 µs of the specification's allowance, and stay open about 84 µs past it. With the stack's `--rx-lead-us 80` and the emulator's detection set to "28 bits of preamble left at the opening" (`--sniff-settle-us=0 --sniff-dwell-bits=7 --sniff-margin-bits=21`), seven emulated detectors deliver every status from the first cycle at 43–49 µA; without the earlier opening, formation takes three cycles and costs more.
+- **The fixed 4.3 µC per listening moment dominates** (21.5 µA at five moments per second): it is the wake from EM2, the high-frequency crystal's start and the radio's start and stop. Reducing it (the crystal's start-up time, the radio's wake path, a lighter sleep state at the window) is the main lever towards 31 µA. The radio's own currents are as measured with RAILtest (§10).
+- Not measured yet: the receive-to-transmit turnaround (0.4 ms needed), carrier sense in 0.1 ms, the sleep clock's drift.
